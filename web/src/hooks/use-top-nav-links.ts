@@ -86,6 +86,10 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Rankings'), href: '/rankings', requiresAuth })
   }
 
+  if (modules?.creativeShowcase !== false) {
+    links.push({ title: t('Creative'), href: '/creative-showcase' })
+  }
+
   // Docs (supports external links)
   if (modules?.docs !== false) {
     if (docsLink) {
