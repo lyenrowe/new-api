@@ -24,10 +24,15 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import type { PricingData } from '@/features/pricing/types'
 import { cn } from '@/lib/utils'
 
 import { defaultWorkspaceSettings } from './draft-defaults'
-import { workspaceGroupForModel, workspaceModelOptions } from './model-options'
+import {
+  workspaceFirstModelForVendor,
+  workspaceGroupForModel,
+  workspaceModelOptions,
+} from './model-options'
 import type {
   WorkspaceAsset,
   WorkspaceCapabilities,
@@ -40,6 +45,7 @@ type WorkspaceComposerProps = {
   type: WorkspaceType
   draft: WorkspaceDraftState
   capabilities?: WorkspaceCapabilities
+  pricing?: PricingData
   groups: Record<string, { desc: string; ratio: number | string }>
   assets: WorkspaceAsset[]
   balance: number
@@ -67,7 +73,11 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
     props.draft.model,
     props.capabilities
   )
-  const modelOptions = workspaceModelOptions(props.type, props.capabilities)
+  const modelOptions = workspaceModelOptions(
+    props.type,
+    props.capabilities,
+    props.pricing
+  )
   const selectedModel = modelOptions.find(
     (option) => option.model === props.draft.model
   )
@@ -120,15 +130,26 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
               onChange={(event) => {
                 const vendor = event.target.value
                 if (!confirmModelReset(props, t)) return
+                const option = workspaceFirstModelForVendor(
+                  modelOptions,
+                  vendor
+                )
+                const model = option?.model || ''
                 setVendorSelections((current) => ({
                   ...current,
                   [props.type]: vendor,
                 }))
                 props.onDraftChange({
                   ...props.draft,
-                  model: '',
-                  group: '',
-                  settings: {},
+                  model,
+                  group: workspaceGroupForModel(
+                    option,
+                    props.draft.group,
+                    props.groups
+                  ),
+                  settings: defaultWorkspaceSettings(
+                    selectedCapability(props.type, model, props.capabilities)
+                  ),
                   assets: [],
                 })
               }}

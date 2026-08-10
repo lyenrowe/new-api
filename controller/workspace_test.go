@@ -17,6 +17,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	workspaceData "github.com/QuantumNous/new-api/custom/workspace"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -93,4 +94,20 @@ func TestWorkspaceAPIKeyRequiredResponseHasStableContract(t *testing.T) {
 	assert.Equal(t, "target-model", response.Data.Model)
 	assert.Equal(t, "vip", response.Data.Group)
 	assert.Equal(t, "vip", response.Data.KeyType)
+}
+
+func TestWorkspacePricingVendorNamesMatchesPricingCatalogAssociations(t *testing.T) {
+	pricing := []model.Pricing{
+		{ModelName: "catalog-model", VendorID: 2},
+		{ModelName: "unassigned-model"},
+		{ModelName: "unknown-vendor-model", VendorID: 99},
+	}
+	vendors := []model.PricingVendor{
+		{ID: 1, Name: "Other Vendor"},
+		{ID: 2, Name: "Catalog Vendor"},
+	}
+
+	assert.Equal(t, map[string]string{
+		"catalog-model": "Catalog Vendor",
+	}, workspacePricingVendorNames(pricing, vendors))
 }

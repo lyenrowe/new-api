@@ -97,9 +97,21 @@ func GetWorkspaceCapabilities(c *gin.Context) {
 		availableModels = append(availableModels, name)
 	}
 	sort.Strings(availableModels)
-	model.GetPricing()
+	pricingVendors := workspacePricingVendorNames(model.GetPricing(), model.GetVendors())
 	imageModels := filterWorkspaceCapabilities(workspaceData.ImageCapabilities, modelGroups, constant.EndpointTypeImageGeneration)
 	videoModels := filterWorkspaceCapabilities(workspaceData.VideoCapabilities, modelGroups)
+	for i := range imageModels {
+		imageModels[i].Vendor = pricingVendors[imageModels[i].Model]
+		if imageModels[i].Vendor == "" {
+			imageModels[i].Vendor = "Custom"
+		}
+	}
+	for i := range videoModels {
+		videoModels[i].Vendor = pricingVendors[videoModels[i].Model]
+		if videoModels[i].Vendor == "" {
+			videoModels[i].Vendor = "Custom"
+		}
+	}
 	reserved := make(map[string]bool, len(imageModels)+len(videoModels))
 	for _, capability := range workspaceData.ImageCapabilities {
 		reserved[capability.Model] = true
@@ -107,19 +119,10 @@ func GetWorkspaceCapabilities(c *gin.Context) {
 	for _, capability := range workspaceData.VideoCapabilities {
 		reserved[capability.Model] = true
 	}
-	vendors, err := model.GetModelVendorNames(availableModels)
-	if err != nil {
-		common.SysLog("GetModelVendorNames error: " + err.Error())
-		vendors = map[string]string{}
-	}
-	fallbackVendors := getPreferredModelOwners(availableModels, groups)
 	textModels := make([]workspaceTextModelCapability, 0, len(availableModels))
 	for _, name := range availableModels {
 		if !reserved[name] && slices.Contains(model.GetModelSupportEndpointTypes(name), constant.EndpointTypeOpenAI) {
-			vendor := vendors[name]
-			if vendor == "" {
-				vendor = fallbackVendors[name]
-			}
+			vendor := pricingVendors[name]
 			if vendor == "" {
 				vendor = "Custom"
 			}
@@ -127,6 +130,23 @@ func GetWorkspaceCapabilities(c *gin.Context) {
 		}
 	}
 	common.ApiSuccess(c, workspaceCapabilitiesResponse{TextModels: textModels, ImageModels: imageModels, VideoModels: videoModels})
+}
+
+func workspacePricingVendorNames(pricing []model.Pricing, vendors []model.PricingVendor) map[string]string {
+	vendorNames := make(map[int]string, len(vendors))
+	for _, vendor := range vendors {
+		if name := strings.TrimSpace(vendor.Name); name != "" {
+			vendorNames[vendor.ID] = name
+		}
+	}
+
+	result := make(map[string]string, len(pricing))
+	for _, item := range pricing {
+		if name := vendorNames[item.VendorID]; name != "" {
+			result[item.ModelName] = name
+		}
+	}
+	return result
 }
 
 func ListWorkspaceConversations(c *gin.Context) {

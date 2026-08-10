@@ -33,6 +33,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { getPricing } from '@/features/pricing/api'
 import { getSelf } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -321,6 +322,11 @@ function WorkspaceSession(props: {
     queryKey: ['workspace', 'capabilities'],
     queryFn: getWorkspaceCapabilities,
   })
+  const pricing = useQuery({
+    queryKey: ['pricing'],
+    queryFn: getPricing,
+    staleTime: 5 * 60 * 1000,
+  })
 
   useEffect(() => {
     if (
@@ -337,8 +343,12 @@ function WorkspaceSession(props: {
   }, [detail.data, imageAssetItems, props.initialType, videoAssetItems])
 
   useEffect(() => {
-    if (!capabilities.data || !groups.data) return
-    const models = workspaceModelOptions(activeType, capabilities.data)
+    if (!capabilities.data || !groups.data || !pricing.data) return
+    const models = workspaceModelOptions(
+      activeType,
+      capabilities.data,
+      pricing.data
+    )
     let model = models[0]?.model || ''
     if (currentDraft.model) {
       model = models.some((item) => item.model === currentDraft.model)
@@ -380,6 +390,7 @@ function WorkspaceSession(props: {
     currentDraft.group,
     currentDraft.model,
     groups.data,
+    pricing.data,
   ])
 
   useEffect(() => {
@@ -600,6 +611,7 @@ function WorkspaceSession(props: {
           assets={availableAssets}
           balance={balance}
           capabilities={capabilities.data}
+          pricing={pricing.data}
           draft={drafts[activeType]}
           groups={groups.data || {}}
           submitting={submitting}
