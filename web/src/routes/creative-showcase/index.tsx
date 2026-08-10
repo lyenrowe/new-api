@@ -10,4 +10,6 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { CreativeShowcasePage } from '@/features/creative-showcase'
 
-export const Route = createFileRoute('/creative-showcase/')({ component: CreativeShowcasePage })
+export const Route = createFileRoute('/creative-showcase/')({
+  component: CreativeShowcasePage,
+})

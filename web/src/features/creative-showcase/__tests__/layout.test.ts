@@ -25,7 +25,7 @@ describe('creative showcase layout', () => {
       ['Text generation', 'Image generation', 'Video generation']
     )
     assert.equal(
-      showcaseCreationTools.every((item) => item.href === '/playground'),
+      showcaseCreationTools.every((item) => item.href === '/workspace'),
       true
     )
   })

@@ -104,6 +104,34 @@ func GetVendorModelCounts() (map[int64]int64, error) {
 	return m, nil
 }
 
+// GetModelVendorNames resolves configured model metadata to enabled vendors.
+func GetModelVendorNames(modelNames []string) (map[string]string, error) {
+	result := make(map[string]string)
+	modelNames = normalizeLookupValues(modelNames)
+	if len(modelNames) == 0 {
+		return result, nil
+	}
+	type modelVendor struct {
+		ModelName  string
+		VendorName string
+	}
+	var rows []modelVendor
+	err := DB.Table("models").
+		Select("models.model_name as model_name, vendors.name as vendor_name").
+		Joins("JOIN vendors ON vendors.id = models.vendor_id").
+		Where("models.model_name IN ? AND models.status = ? AND vendors.status = ? AND models.deleted_at IS NULL AND vendors.deleted_at IS NULL", modelNames, 1, 1).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if name := strings.TrimSpace(row.VendorName); name != "" {
+			result[row.ModelName] = name
+		}
+	}
+	return result, nil
+}
+
 func GetAllModels(offset int, limit int) ([]*Model, error) {
 	models, _, err := SearchModels("", "", "", "", offset, limit)
 	return models, err

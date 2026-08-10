@@ -93,12 +93,14 @@ type ApiKeyMutateDrawerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentRow?: ApiKey
+  initialGroup?: string
 }
 
 export function ApiKeysMutateDrawer({
   open,
   onOpenChange,
   currentRow,
+  initialGroup,
 }: ApiKeyMutateDrawerProps) {
   const { t } = useTranslation()
   const isUpdate = !!currentRow
@@ -215,7 +217,10 @@ export function ApiKeysMutateDrawer({
     if (isUpdate && (!apiKeyFetched || apiKeyFetching)) return
     if (!isUpdate && statusLoading) return
 
-    const target = isUpdate && currentRow ? `update:${currentRow.id}` : 'create'
+    const target =
+      isUpdate && currentRow
+        ? `update:${currentRow.id}`
+        : `create:${initialGroup || ''}`
     if (initializedTarget === target) return
     if (isUpdate && currentRow) {
       if (apiKeyData?.success && apiKeyData.data) {
@@ -229,9 +234,17 @@ export function ApiKeysMutateDrawer({
         setInitializedTarget(target)
       }
     } else {
-      form.reset(
-        getApiKeyFormDefaultValues(defaultUseAutoGroup && backendHasAuto)
+      const defaults = getApiKeyFormDefaultValues(
+        defaultUseAutoGroup && backendHasAuto
       )
+      if (
+        initialGroup &&
+        groups.some((group) => group.value === initialGroup)
+      ) {
+        defaults.group = initialGroup
+        defaults.cross_group_retry = false
+      }
+      form.reset(defaults)
       setInitializedTarget(target)
     }
   }, [
@@ -252,10 +265,14 @@ export function ApiKeysMutateDrawer({
     availableAutoGroupNames,
     maxAutoGroups,
     initializedTarget,
+    initialGroup,
+    groups,
   ])
 
   const formTarget =
-    isUpdate && currentRow ? `update:${currentRow.id}` : 'create'
+    isUpdate && currentRow
+      ? `update:${currentRow.id}`
+      : `create:${initialGroup || ''}`
   const isFormInitialized = initializedTarget === formTarget
   const selectedGroup = form.watch('group')
 

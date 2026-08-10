@@ -72,6 +72,7 @@ type requestPayload struct {
 	CameraControl  *CameraControl `json:"camera_control,omitempty"`
 	CallbackUrl    string         `json:"callback_url,omitempty"`
 	ExternalTaskId string         `json:"external_task_id,omitempty"`
+	GenerateAudio  *bool          `json:"generate_audio,omitempty"`
 }
 
 type responsePayload struct {
@@ -129,8 +130,19 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 
 // ValidateRequestAndSetAction parses body, validates fields and sets default action.
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *taskdto.TaskError) {
-	// Use the standard validation method for TaskSubmitReq
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+	if taskErr := relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate); taskErr != nil {
+		return taskErr
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return service.TaskErrorWrapper(err, "get_task_request_failed", http.StatusBadRequest)
+	}
+	if req.Image == "" && len(req.Images) == 0 {
+		info.Action = constant.TaskActionTextGenerate
+	} else {
+		info.Action = constant.TaskActionGenerate
+	}
+	return nil
 }
 
 // BuildRequestURL constructs the upstream URL.
@@ -253,7 +265,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 }
 
 func (a *TaskAdaptor) GetModelList() []string {
-	return []string{"kling-v1", "kling-v1-6", "kling-v2-master"}
+	return []string{"kling-v1", "kling-v1-6", "kling-v2-master", "kling-v3"}
 }
 
 func (a *TaskAdaptor) GetChannelName() string {

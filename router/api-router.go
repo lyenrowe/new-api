@@ -20,6 +20,28 @@ func SetApiRouter(router *gin.Engine) {
 	apiRouter.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	creative_showcase.RegisterRoutes(apiRouter, model.DB, middleware.AdminAuth())
+	apiRouter.GET("/workspace/public/*key", controller.ServeWorkspaceAsset)
+	workspaceRoute := apiRouter.Group("/workspace")
+	workspaceRoute.Use(middleware.UserAuth())
+	{
+		workspaceRoute.GET("/capabilities", controller.GetWorkspaceCapabilities)
+		workspaceRoute.GET("/conversations", controller.ListWorkspaceConversations)
+		workspaceRoute.POST("/conversations", controller.CreateWorkspaceConversation)
+		workspaceRoute.GET("/conversations/:id", controller.GetWorkspaceConversation)
+		workspaceRoute.PATCH("/conversations/:id", controller.UpdateWorkspaceConversation)
+		workspaceRoute.DELETE("/conversations/:id", controller.DeleteWorkspaceConversation)
+		workspaceRoute.PUT("/conversations/:id/drafts/:type", controller.SaveWorkspaceDraft)
+		workspaceRoute.POST("/conversations/:id/rounds", controller.CreateWorkspaceRound)
+		workspaceRoute.GET("/rounds/:id", controller.GetWorkspaceRound)
+		workspaceRoute.PATCH("/rounds/:id/text-result", controller.SaveWorkspaceTextResult)
+		workspaceRoute.GET("/assets", controller.ListWorkspaceAssets)
+		workspaceRoute.POST("/assets", controller.UploadWorkspaceAsset)
+		workspaceRoute.POST("/assets/register", controller.RegisterWorkspaceAsset)
+		workspaceRoute.DELETE("/assets/:id", controller.DeleteWorkspaceAsset)
+		workspaceRoute.POST("/assets/upload-credentials", controller.GetWorkspaceUploadCredentials)
+		workspaceRoute.POST("/presets/cases/:caseId", controller.CreateWorkspacePreset)
+		workspaceRoute.POST("/generate", middleware.PrepareWorkspaceRelay(), controller.PrepareWorkspaceGeneration(), middleware.Distribute(), controller.GenerateWorkspaceRound)
+	}
 	anonymousRequestBodyLimit := middleware.AnonymousRequestBodyLimit()
 	{
 		apiRouter.GET("/setup", controller.GetSetup)

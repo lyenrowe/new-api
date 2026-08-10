@@ -47,6 +47,34 @@ func GetGroupEnabledModels(group string) []string {
 	return models
 }
 
+// GetEnabledModelGroups returns the enabled group associations for each model.
+// The caller supplies the groups the current user is allowed to inspect.
+func GetEnabledModelGroups(groups []string) (map[string][]string, error) {
+	result := make(map[string][]string)
+	if len(groups) == 0 {
+		return result, nil
+	}
+	type modelGroup struct {
+		Model string
+		Group string
+	}
+	var rows []modelGroup
+	err := DB.Model(&Ability{}).
+		Select("model, "+commonGroupCol+" as "+commonGroupCol).
+		Where(commonGroupCol+" IN ? AND enabled = ?", groups, true).
+		Distinct().
+		Order("model ASC").
+		Order(commonGroupCol + " ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.Model] = append(result[row.Model], row.Group)
+	}
+	return result, nil
+}
+
 func GetEnabledModels() []string {
 	var models []string
 	// Find distinct models

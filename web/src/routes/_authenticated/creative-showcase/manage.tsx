@@ -12,9 +12,13 @@ import { CreativeShowcaseAdminPage } from '@/features/creative-showcase'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
-export const Route = createFileRoute('/_authenticated/creative-showcase/manage')({
+export const Route = createFileRoute(
+  '/_authenticated/creative-showcase/manage'
+)({
   beforeLoad: () => {
-    if ((useAuthStore.getState().auth.user?.role ?? 0) < ROLE.ADMIN) throw redirect({ to: '/403' })
+    if ((useAuthStore.getState().auth.user?.role ?? 0) < ROLE.ADMIN) {
+      throw redirect({ to: '/403' })
+    }
   },
   component: CreativeShowcaseAdminPage,
 })

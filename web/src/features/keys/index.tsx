@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { getRouteApi } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
@@ -25,10 +26,16 @@ import { ApiKeysPrimaryButtons } from './components/api-keys-primary-buttons'
 import { ApiKeysProvider } from './components/api-keys-provider'
 import { ApiKeysTable } from './components/api-keys-table'
 
+const route = getRouteApi('/_authenticated/keys/')
+
 export function ApiKeys() {
   const { t } = useTranslation()
+  const search = route.useSearch()
   return (
-    <ApiKeysProvider>
+    <ApiKeysProvider
+      initialCreateGroup={search.group}
+      initialOpen={search.create}
+    >
       <SectionPageLayout fixedContent>
         <SectionPageLayout.Title>{t('API Keys')}</SectionPageLayout.Title>
         <SectionPageLayout.Actions>

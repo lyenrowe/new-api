@@ -47,25 +47,27 @@ type Category struct {
 }
 
 type Case struct {
-	ID          int64  `json:"id" gorm:"primaryKey"`
-	Title       string `json:"title" gorm:"size:200;not null"`
-	Type        string `json:"type" gorm:"size:16;index;not null"`
-	CategoryID  int64  `json:"category_id" gorm:"index;not null"`
-	CoverKey    string `json:"cover_key" gorm:"type:text;not null"`
-	MediaKey    string `json:"media_key" gorm:"type:text"`
-	Prompt      string `json:"prompt" gorm:"type:text;not null"`
-	Size        string `json:"size" gorm:"size:32"`
-	AspectRatio string `json:"aspect_ratio" gorm:"size:32"`
-	Duration    int    `json:"duration"`
-	Model       string `json:"model" gorm:"size:120"`
-	Group       string `json:"group" gorm:"size:120"`
-	StartFrame  string `json:"start_frame" gorm:"type:text"`
-	EndFrame    string `json:"end_frame" gorm:"type:text"`
-	Featured    bool   `json:"featured" gorm:"index;not null"`
-	Published   bool   `json:"published" gorm:"index;not null"`
-	SortOrder   int    `json:"sort_order" gorm:"index;not null"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID            int64  `json:"id" gorm:"primaryKey"`
+	Title         string `json:"title" gorm:"size:200;not null"`
+	Type          string `json:"type" gorm:"size:16;index;not null"`
+	CategoryID    int64  `json:"category_id" gorm:"index;not null"`
+	CoverKey      string `json:"cover_key" gorm:"type:text;not null"`
+	MediaKey      string `json:"media_key" gorm:"type:text"`
+	Prompt        string `json:"prompt" gorm:"type:text;not null"`
+	Size          string `json:"size" gorm:"size:32"`
+	AspectRatio   string `json:"aspect_ratio" gorm:"size:32"`
+	Duration      int    `json:"duration"`
+	Model         string `json:"model" gorm:"size:120"`
+	Group         string `json:"group" gorm:"size:120"`
+	StartFrame    string `json:"start_frame" gorm:"type:text"`
+	EndFrame      string `json:"end_frame" gorm:"type:text"`
+	Settings      string `json:"settings" gorm:"type:text"`
+	ReferenceURLs string `json:"reference_urls" gorm:"type:text"`
+	Featured      bool   `json:"featured" gorm:"index;not null"`
+	Published     bool   `json:"published" gorm:"index;not null"`
+	SortOrder     int    `json:"sort_order" gorm:"index;not null"`
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type caseResponse struct {
@@ -87,28 +89,32 @@ type caseResponse struct {
 	EndFrame      string `json:"end_frame,omitempty"`
 	StartFrameKey string `json:"start_frame_key,omitempty"`
 	EndFrameKey   string `json:"end_frame_key,omitempty"`
+	Settings      string `json:"settings,omitempty"`
+	ReferenceURLs string `json:"reference_urls,omitempty"`
 	Featured      bool   `json:"featured"`
 	Published     bool   `json:"published"`
 	SortOrder     int    `json:"sort_order"`
 }
 
 type caseInput struct {
-	Title       string `json:"title" binding:"required,max=200"`
-	Type        string `json:"type" binding:"required,oneof=image video"`
-	CategoryID  int64  `json:"category_id" binding:"required"`
-	CoverKey    string `json:"cover_key" binding:"required,max=500"`
-	MediaKey    string `json:"media_key" binding:"max=500"`
-	Prompt      string `json:"prompt" binding:"required,max=10000"`
-	Size        string `json:"size" binding:"max=32"`
-	AspectRatio string `json:"aspect_ratio" binding:"max=32"`
-	Duration    int    `json:"duration" binding:"min=0,max=600"`
-	Model       string `json:"model" binding:"max=120"`
-	Group       string `json:"group" binding:"max=120"`
-	StartFrame  string `json:"start_frame" binding:"max=500"`
-	EndFrame    string `json:"end_frame" binding:"max=500"`
-	Featured    bool   `json:"featured"`
-	Published   bool   `json:"published"`
-	SortOrder   int    `json:"sort_order"`
+	Title         string `json:"title" binding:"required,max=200"`
+	Type          string `json:"type" binding:"required,oneof=image video"`
+	CategoryID    int64  `json:"category_id" binding:"required"`
+	CoverKey      string `json:"cover_key" binding:"required,max=500"`
+	MediaKey      string `json:"media_key" binding:"max=500"`
+	Prompt        string `json:"prompt" binding:"required,max=10000"`
+	Size          string `json:"size" binding:"max=32"`
+	AspectRatio   string `json:"aspect_ratio" binding:"max=32"`
+	Duration      int    `json:"duration" binding:"min=0,max=600"`
+	Model         string `json:"model" binding:"max=120"`
+	Group         string `json:"group" binding:"max=120"`
+	StartFrame    string `json:"start_frame" binding:"max=500"`
+	EndFrame      string `json:"end_frame" binding:"max=500"`
+	Settings      string `json:"settings" binding:"max=20000"`
+	ReferenceURLs string `json:"reference_urls" binding:"max=20000"`
+	Featured      bool   `json:"featured"`
+	Published     bool   `json:"published"`
+	SortOrder     int    `json:"sort_order"`
 }
 
 func Migrate(db *gorm.DB) error {
@@ -344,16 +350,37 @@ func validateCaseInput(db *gorm.DB, input caseInput, c *gin.Context) (Case, bool
 		respondError(c, http.StatusBadRequest, "Video cases require a video asset")
 		return Case{}, false
 	}
+	if input.Settings != "" {
+		var settings map[string]any
+		if err := common.UnmarshalJsonStr(input.Settings, &settings); err != nil {
+			respondError(c, http.StatusBadRequest, "Case settings must be a JSON object")
+			return Case{}, false
+		}
+	}
+	if input.ReferenceURLs != "" {
+		var references []string
+		if err := common.UnmarshalJsonStr(input.ReferenceURLs, &references); err != nil {
+			respondError(c, http.StatusBadRequest, "Case reference URLs must be a JSON array")
+			return Case{}, false
+		}
+		for _, reference := range references {
+			parsed, err := url.Parse(reference)
+			if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+				respondError(c, http.StatusBadRequest, "Case reference URL is invalid")
+				return Case{}, false
+			}
+		}
+	}
 	var count int64
 	if err := db.Model(&Category{}).Where("id = ?", input.CategoryID).Count(&count).Error; err != nil || count == 0 {
 		respondError(c, http.StatusBadRequest, "Category not found")
 		return Case{}, false
 	}
-	return Case{Title: strings.TrimSpace(input.Title), Type: input.Type, CategoryID: input.CategoryID, CoverKey: input.CoverKey, MediaKey: input.MediaKey, Prompt: strings.TrimSpace(input.Prompt), Size: input.Size, AspectRatio: input.AspectRatio, Duration: input.Duration, Model: input.Model, Group: input.Group, StartFrame: input.StartFrame, EndFrame: input.EndFrame, Featured: input.Featured, Published: input.Published, SortOrder: input.SortOrder}, true
+	return Case{Title: strings.TrimSpace(input.Title), Type: input.Type, CategoryID: input.CategoryID, CoverKey: input.CoverKey, MediaKey: input.MediaKey, Prompt: strings.TrimSpace(input.Prompt), Size: input.Size, AspectRatio: input.AspectRatio, Duration: input.Duration, Model: input.Model, Group: input.Group, StartFrame: input.StartFrame, EndFrame: input.EndFrame, Settings: input.Settings, ReferenceURLs: input.ReferenceURLs, Featured: input.Featured, Published: input.Published, SortOrder: input.SortOrder}, true
 }
 
 func presentCase(item Case) caseResponse {
-	return caseResponse{ID: item.ID, Title: item.Title, Type: item.Type, CategoryID: item.CategoryID, CoverURL: assetURL(item.CoverKey), CoverKey: item.CoverKey, MediaURL: assetURL(item.MediaKey), MediaKey: item.MediaKey, Prompt: item.Prompt, Size: item.Size, AspectRatio: item.AspectRatio, Duration: item.Duration, Model: item.Model, Group: item.Group, StartFrame: assetURL(item.StartFrame), EndFrame: assetURL(item.EndFrame), StartFrameKey: item.StartFrame, EndFrameKey: item.EndFrame, Featured: item.Featured, Published: item.Published, SortOrder: item.SortOrder}
+	return caseResponse{ID: item.ID, Title: item.Title, Type: item.Type, CategoryID: item.CategoryID, CoverURL: assetURL(item.CoverKey), CoverKey: item.CoverKey, MediaURL: assetURL(item.MediaKey), MediaKey: item.MediaKey, Prompt: item.Prompt, Size: item.Size, AspectRatio: item.AspectRatio, Duration: item.Duration, Model: item.Model, Group: item.Group, StartFrame: assetURL(item.StartFrame), EndFrame: assetURL(item.EndFrame), StartFrameKey: item.StartFrame, EndFrameKey: item.EndFrame, Settings: item.Settings, ReferenceURLs: item.ReferenceURLs, Featured: item.Featured, Published: item.Published, SortOrder: item.SortOrder}
 }
 func isAssetKey(key string) bool {
 	return strings.HasPrefix(key, assetPrefix) && !strings.Contains(key, "..")
@@ -366,6 +393,37 @@ func assetURL(key string) string {
 		return "/api/creative-showcase/assets/" + key
 	}
 	return strings.TrimSuffix(getEnv("CREATIVE_SHOWCASE_CDN_URL", "https://s.zhouyitoken.com"), "/") + "/" + strings.TrimPrefix(key, "/")
+}
+
+// PublicAssetURL resolves a showcase storage key for reuse by another
+// authenticated feature without exposing the storage implementation.
+func PublicAssetURL(key string) string {
+	return assetURL(key)
+}
+
+// ReadLocalAsset returns a locally stored showcase asset. OSS-backed assets
+// are intentionally read through their public URL instead.
+func ReadLocalAsset(key string, limit int64) ([]byte, string, bool, error) {
+	if ossConfigured() {
+		return nil, "", false, nil
+	}
+	path, ok := localAssetPath(key)
+	if !ok {
+		return nil, "", false, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, "", true, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, "", true, err
+	}
+	if int64(len(data)) > limit {
+		return nil, "", true, fmt.Errorf("showcase asset exceeds copy limit")
+	}
+	return data, http.DetectContentType(data), true, nil
 }
 func respondOK(c *gin.Context, data any) { c.JSON(http.StatusOK, gin.H{"success": true, "data": data}) }
 func respondError(c *gin.Context, status int, message string) {

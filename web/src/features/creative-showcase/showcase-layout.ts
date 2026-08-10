@@ -12,7 +12,7 @@ export const showcaseContentTypes = [
 ] as const
 
 export const showcaseCreationTools = [
-  { id: 'text', labelKey: 'Text generation', href: '/playground' },
-  { id: 'image', labelKey: 'Image generation', href: '/playground' },
-  { id: 'video', labelKey: 'Video generation', href: '/playground' },
+  { id: 'text', labelKey: 'Text generation', href: '/workspace' },
+  { id: 'image', labelKey: 'Image generation', href: '/workspace' },
+  { id: 'video', labelKey: 'Video generation', href: '/workspace' },
 ] as const

@@ -67,6 +67,8 @@ const emptyCase: ShowcaseCaseInput = {
   group: '',
   start_frame: '',
   end_frame: '',
+  settings: '',
+  reference_urls: '',
   featured: false,
   published: false,
   sort_order: 0,
@@ -132,6 +134,8 @@ export function CreativeShowcaseAdminPage() {
       group: item.group ?? '',
       start_frame: item.start_frame_key ?? '',
       end_frame: item.end_frame_key ?? '',
+      settings: item.settings ?? '',
+      reference_urls: item.reference_urls ?? '',
       featured: item.featured,
       published: item.published,
       sort_order: item.sort_order,
@@ -431,6 +435,18 @@ function CaseEditor(props: {
                 placeholder='1024x1024'
               />
             </Field>
+            <Field label={t('Model')}>
+              <Input
+                value={props.form.model}
+                onChange={(event) => set('model', event.target.value)}
+              />
+            </Field>
+            <Field label={t('Group')}>
+              <Input
+                value={props.form.group}
+                onChange={(event) => set('group', event.target.value)}
+              />
+            </Field>
             {props.form.type === 'video' && (
               <>
                 <Field label={t('Aspect ratio')}>
@@ -456,6 +472,22 @@ function CaseEditor(props: {
               </>
             )}
           </div>
+          <Field label={t('Workspace preset settings (JSON)')}>
+            <Textarea
+              className='min-h-24 font-mono text-xs'
+              value={props.form.settings}
+              onChange={(event) => set('settings', event.target.value)}
+              placeholder='{"resolution":"2K","aspectRatio":"16:9"}'
+            />
+          </Field>
+          <Field label={t('Reference URLs (JSON array)')}>
+            <Textarea
+              className='min-h-20 font-mono text-xs'
+              value={props.form.reference_urls}
+              onChange={(event) => set('reference_urls', event.target.value)}
+              placeholder='["https://example.com/reference.png"]'
+            />
+          </Field>
           <Field label={t('Prompt text')}>
             <Textarea
               className='min-h-36'

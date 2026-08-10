@@ -11,6 +11,7 @@ import {
   AiImageIcon,
   AiVideoIcon,
   ArrowLeft01Icon,
+  Download04Icon,
   Image01Icon,
   InformationCircleIcon,
   MagicWand01Icon,
@@ -144,7 +145,7 @@ export function CreativeShowcasePage() {
                   <Button
                     key={tool.id}
                     variant='outline'
-                    render={<Link to={tool.href} />}
+                    render={<Link to={tool.href} search={{ type: tool.id }} />}
                   >
                     <HugeiconsIcon
                       icon={creationToolIcons[tool.id]}
@@ -223,6 +224,16 @@ export function CreativeShowcasePage() {
                 <article
                   className='group bg-card mb-4 break-inside-avoid overflow-hidden rounded-xl border [content-visibility:auto]'
                   key={item.id}
+                  aria-label={`${t('Full preview')}: ${item.title}`}
+                  role='button'
+                  tabIndex={0}
+                  onClick={() => setPreview(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setPreview(item)
+                    }
+                  }}
                 >
                   <div className='relative'>
                     <img
@@ -232,9 +243,9 @@ export function CreativeShowcasePage() {
                       src={item.cover_url}
                     />
                     <div className='absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100'>
-                      <Button onClick={() => setPreview(item)}>
+                      <span className='bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium'>
                         {t('Full preview')}
-                      </Button>
+                      </span>
                     </div>
                     {item.type === 'video' && (
                       <span className='absolute top-2 left-2 rounded bg-black/65 px-2 py-1 text-xs text-white'>
@@ -458,18 +469,38 @@ export function PreviewDialog(props: {
             </div>
 
             <div className='bg-card border-t p-4'>
-              <Button
-                className='w-full'
-                size='lg'
-                render={<Link to='/playground' />}
-              >
-                <HugeiconsIcon
-                  data-icon='inline-start'
-                  icon={MagicWand01Icon}
-                  strokeWidth={2}
-                />
-                {t('Open in workspace')}
-              </Button>
+              <div className='grid gap-2'>
+                <Button
+                  className='w-full'
+                  size='lg'
+                  render={
+                    <Link
+                      to='/workspace'
+                      search={{ type: props.item.type, caseId: props.item.id }}
+                    />
+                  }
+                >
+                  <HugeiconsIcon
+                    data-icon='inline-start'
+                    icon={MagicWand01Icon}
+                    strokeWidth={2}
+                  />
+                  {t('Open in workspace')}
+                </Button>
+                <Button
+                  className='w-full'
+                  variant='outline'
+                  render={
+                    <a
+                      download
+                      href={props.item.media_url || props.item.cover_url}
+                    />
+                  }
+                >
+                  <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
+                  {t('Download')}
+                </Button>
+              </div>
             </div>
           </section>
 

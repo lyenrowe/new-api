@@ -33,12 +33,25 @@ export type ShowcaseCase = {
   end_frame?: string
   start_frame_key?: string
   end_frame_key?: string
+  settings?: string
+  reference_urls?: string
   featured: boolean
   published: boolean
   sort_order: number
 }
 
-export type ShowcaseCaseInput = Omit<ShowcaseCase, 'id' | 'cover_url' | 'cover_key' | 'media_url' | 'media_key' | 'start_frame' | 'end_frame' | 'start_frame_key' | 'end_frame_key'> & {
+export type ShowcaseCaseInput = Omit<
+  ShowcaseCase,
+  | 'id'
+  | 'cover_url'
+  | 'cover_key'
+  | 'media_url'
+  | 'media_key'
+  | 'start_frame'
+  | 'end_frame'
+  | 'start_frame_key'
+  | 'end_frame_key'
+> & {
   cover_key: string
   media_key?: string
   start_frame?: string

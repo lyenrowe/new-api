@@ -31,6 +31,11 @@ const apiKeySearchSchema = z.object({
     .catch([]),
   filter: z.string().optional().catch(''),
   token: z.string().optional().catch(''),
+  create: z
+    .preprocess((value) => value === true || value === 'true', z.boolean())
+    .optional()
+    .catch(false),
+  group: z.string().optional().catch(''),
 })
 
 export const Route = createFileRoute('/_authenticated/keys/')({

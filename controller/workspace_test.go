@@ -1,0 +1,96 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+*/
+package controller
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/QuantumNous/new-api/common"
+	workspaceData "github.com/QuantumNous/new-api/custom/workspace"
+	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+)
+
+func TestWorkspaceCanonicalPayloadKeepsImageCountAndKlingFalseAudio(t *testing.T) {
+	imageRound := &workspaceData.Round{ID: 1, UserID: 10, Type: workspaceData.KindImage, Model: "gpt-image-2", Prompt: "poster"}
+	imagePayload, imagePath, err := canonicalWorkspacePayload(nil, imageRound, nil, map[string]any{
+		"resolution": "4K", "aspectRatio": "16:9", "quality": "high",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "/v1/images/generations", imagePath)
+	assert.Equal(t, 1, imagePayload["n"])
+	assert.Equal(t, "3840x2160", imagePayload["size"])
+
+	videoRound := &workspaceData.Round{ID: 2, UserID: 10, Type: workspaceData.KindVideo, Model: "kling-v3", Prompt: "orbit"}
+	videoPayload, videoPath, err := canonicalWorkspacePayload(nil, videoRound, nil, map[string]any{
+		"duration": float64(15), "aspectRatio": "9:16", "mode": "pro", "audio": false,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "/v1/video/generations", videoPath)
+	assert.Equal(t, 15, videoPayload["duration"])
+	metadata, ok := videoPayload["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, false, metadata["generate_audio"])
+}
+
+func TestWorkspaceTextStreamExtraction(t *testing.T) {
+	result, err := workspaceTextFromStream([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"hello \"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"world\"}}]}\n\ndata: [DONE]\n\n"))
+	require.NoError(t, err)
+	assert.Equal(t, "hello world", result)
+}
+
+func TestWorkspaceCanonicalTextPayloadIgnoresLegacyTuningSettings(t *testing.T) {
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&workspaceData.Conversation{}, &workspaceData.Draft{}, &workspaceData.Round{}))
+	conversation := workspaceData.Conversation{UserID: 10, Title: "text", ActiveType: workspaceData.KindText}
+	require.NoError(t, db.Create(&conversation).Error)
+	round := &workspaceData.Round{ID: 2, ConversationID: conversation.ID, UserID: 10, Type: workspaceData.KindText, Model: "text-model", Prompt: "hello"}
+
+	payload, path, err := canonicalWorkspacePayload(db, round, nil, map[string]any{
+		"temperature": 2.0,
+		"maxTokens":   1024.0,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "/v1/chat/completions", path)
+	assert.NotContains(t, payload, "temperature")
+	assert.NotContains(t, payload, "max_tokens")
+}
+
+func TestWorkspaceAPIKeyRequiredResponseHasStableContract(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+
+	workspaceAPIKeyRequired(context, "target-model", "vip")
+
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	var response struct {
+		Success bool   `json:"success"`
+		Code    string `json:"code"`
+		Data    struct {
+			Model   string `json:"model"`
+			Group   string `json:"group"`
+			KeyType string `json:"key_type"`
+		} `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.False(t, response.Success)
+	assert.Equal(t, "workspace_api_key_required", response.Code)
+	assert.Equal(t, "target-model", response.Data.Model)
+	assert.Equal(t, "vip", response.Data.Group)
+	assert.Equal(t, "vip", response.Data.KeyType)
+}

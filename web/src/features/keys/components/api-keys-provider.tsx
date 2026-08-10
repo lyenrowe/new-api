@@ -24,7 +24,7 @@ import useDialogState from '@/hooks/use-dialog'
 
 import { fetchTokenKey, fetchTokenKeysBatch } from '../api'
 import { ERROR_MESSAGES } from '../constants'
-import { type ApiKey, type ApiKeysDialogType } from '../types'
+import type { ApiKey, ApiKeysDialogType } from '../types'
 
 type ApiKeysContextType = {
   open: ApiKeysDialogType | null
@@ -41,13 +41,20 @@ type ApiKeysContextType = {
   loadingKeys: Record<number, boolean>
   copiedKeyId: number | null
   markKeyCopied: (id: number) => void
+  initialCreateGroup: string
 }
 
 const ApiKeysContext = React.createContext<ApiKeysContextType | null>(null)
 
-export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
+export function ApiKeysProvider(props: {
+  children: React.ReactNode
+  initialOpen?: boolean
+  initialCreateGroup?: string
+}) {
   const { t } = useTranslation()
-  const [open, setOpen] = useDialogState<ApiKeysDialogType>(null)
+  const [open, setOpen] = useDialogState<ApiKeysDialogType>(
+    props.initialOpen ? 'create' : null
+  )
   const [currentRow, setCurrentRow] = useState<ApiKey | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [resolvedKey, setResolvedKey] = useState('')
@@ -171,9 +178,10 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         loadingKeys,
         copiedKeyId,
         markKeyCopied,
+        initialCreateGroup: props.initialCreateGroup || '',
       }}
     >
-      {children}
+      {props.children}
     </ApiKeysContext>
   )
 }
