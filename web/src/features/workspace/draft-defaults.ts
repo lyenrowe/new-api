@@ -22,7 +22,11 @@ export function defaultWorkspaceSettings(
   return {
     mode: capability.modes?.[0]?.value,
     aspectRatio: capability.aspect_ratios?.[0]?.value,
-    resolution: capability.resolutions?.[0]?.value,
+    resolution:
+      capability.type === 'image' &&
+      capability.resolutions?.some((option) => option.value === '2K')
+        ? '2K'
+        : capability.resolutions?.[0]?.value,
     quality,
     duration: capability.durations?.[0]?.value,
     audio: capability.supports_audio ? false : undefined,

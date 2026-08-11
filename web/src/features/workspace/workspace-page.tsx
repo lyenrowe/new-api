@@ -312,10 +312,15 @@ function WorkspaceSession(props: {
   const [streamingRoundId, setStreamingRoundId] = useState<number>()
   const [streamingText, setStreamingText] = useState('')
   const [atLatest, setAtLatest] = useState(true)
+  const [composerExpanded, setComposerExpanded] = useState(false)
+  const [composerHeight, setComposerHeight] = useState(176)
   const [missingKey, setMissingKey] = useState<WorkspaceAPIKeyRequirement>()
   const hydrated = useRef(false)
   const initialScrollDone = useRef(false)
   const scrollArea = useRef<HTMLDivElement>(null)
+  const composerArea = useRef<HTMLDivElement>(null)
+  const composerInteracting = useRef(false)
+  const lastScrollTop = useRef(0)
   const observedStatuses = useRef(new Map<number, string>())
   const currentDraft = drafts[activeType]
   const capabilities = useQuery({
@@ -429,6 +434,22 @@ function WorkspaceSession(props: {
     if (atLatest) element.scrollTop = element.scrollHeight
   }, [atLatest, detail.data?.rounds.length, streamingText])
 
+  useEffect(() => {
+    const element = composerArea.current
+    if (!element) return
+    const observer = new ResizeObserver((entries) => {
+      const height = Math.ceil(entries[0]?.contentRect.height || 0)
+      if (height > 0) setComposerHeight(height)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const element = scrollArea.current
+    if (element && atLatest) element.scrollTop = element.scrollHeight
+  }, [atLatest, composerHeight])
+
   const updateDraft = (draft: WorkspaceDraftState) =>
     setDrafts((current) => ({ ...current, [activeType]: draft }))
 
@@ -513,6 +534,13 @@ function WorkspaceSession(props: {
   }
 
   const upload = async (kind: 'image' | 'video', file: File) => {
+    if (
+      kind === 'image' &&
+      drafts[activeType].assets.filter((asset) => asset.kind === 'image')
+        .length >= 3
+    ) {
+      return
+    }
     setUploadProgress(0)
     try {
       const asset = await uploadWorkspaceAsset(kind, file, setUploadProgress)
@@ -538,10 +566,6 @@ function WorkspaceSession(props: {
       </div>
     )
   }
-  const availableAssets =
-    activeType === 'image'
-      ? imageAssets.data?.items || []
-      : [...(imageAssets.data?.items || []), ...(videoAssets.data?.items || [])]
   const allAssets = [
     ...(imageAssets.data?.items || []),
     ...(videoAssets.data?.items || []),
@@ -565,21 +589,31 @@ function WorkspaceSession(props: {
             {t('Workspace')}
           </span>
         </header>
-        <div className='relative min-h-0 flex-1'>
+        <div className='relative min-h-0 flex-1 overflow-hidden'>
           <div
             ref={scrollArea}
             className='h-full overflow-y-auto px-4'
             onScroll={(event) => {
               const element = event.currentTarget
-              setAtLatest(
+              const latest =
                 element.scrollHeight -
                   element.scrollTop -
                   element.clientHeight <
-                  80
-              )
+                80
+              const scrollingUp = element.scrollTop < lastScrollTop.current - 8
+              lastScrollTop.current = element.scrollTop
+              setAtLatest(latest)
+              if (latest) {
+                setComposerExpanded(false)
+              } else if (scrollingUp && !composerInteracting.current) {
+                setComposerExpanded(false)
+              }
             }}
           >
-            <div className='mx-auto max-w-5xl'>
+            <div
+              className='mx-auto max-w-5xl'
+              style={{ paddingBottom: composerHeight + 24 }}
+            >
               <RoundList
                 rounds={detail.data.rounds}
                 streamingRoundId={streamingRoundId}
@@ -593,8 +627,9 @@ function WorkspaceSession(props: {
           </div>
           {!atLatest && (
             <Button
-              className='absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full shadow-md'
+              className='absolute left-1/2 z-20 -translate-x-1/2 rounded-full shadow-md'
               size='sm'
+              style={{ bottom: composerHeight + 24 }}
               variant='secondary'
               onClick={() =>
                 scrollArea.current?.scrollTo({
@@ -606,27 +641,39 @@ function WorkspaceSession(props: {
               {t('Return to latest')}
             </Button>
           )}
+          <div
+            ref={composerArea}
+            className='pointer-events-none absolute inset-x-3 bottom-3 z-30'
+          >
+            <div className='pointer-events-auto'>
+              <WorkspaceComposer
+                balance={balance}
+                capabilities={capabilities.data}
+                compact={!atLatest && !composerExpanded}
+                pricing={pricing.data}
+                draft={drafts[activeType]}
+                groups={groups.data || {}}
+                submitting={submitting}
+                uploadProgress={uploadProgress}
+                type={activeType}
+                onDraftChange={updateDraft}
+                onExpand={() => setComposerExpanded(true)}
+                onInteractionChange={(interacting) => {
+                  composerInteracting.current = interacting
+                  if (interacting) setComposerExpanded(true)
+                }}
+                onSubmit={() => void submit()}
+                onTypeChange={(type) => {
+                  setActiveType(type)
+                  void updateWorkspaceConversation(props.conversationId, {
+                    active_type: type,
+                  })
+                }}
+                onUpload={(kind, file) => void upload(kind, file)}
+              />
+            </div>
+          </div>
         </div>
-        <WorkspaceComposer
-          assets={availableAssets}
-          balance={balance}
-          capabilities={capabilities.data}
-          pricing={pricing.data}
-          draft={drafts[activeType]}
-          groups={groups.data || {}}
-          submitting={submitting}
-          uploadProgress={uploadProgress}
-          type={activeType}
-          onDraftChange={updateDraft}
-          onSubmit={() => void submit()}
-          onTypeChange={(type) => {
-            setActiveType(type)
-            void updateWorkspaceConversation(props.conversationId, {
-              active_type: type,
-            })
-          }}
-          onUpload={(kind, file) => void upload(kind, file)}
-        />
       </div>
       <Dialog
         open={Boolean(missingKey)}
