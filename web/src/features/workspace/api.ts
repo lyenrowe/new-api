@@ -227,7 +227,6 @@ export async function generateWorkspaceMedia(
   const images = draft.assets
     .filter((asset) => asset.kind === 'image')
     .map((asset) => asset.public_url)
-  const video = draft.assets.find((asset) => asset.kind === 'video')
   const settings = draft.settings
   const operation = images.length > 0 ? 'edit' : 'generate'
   const payload: Record<string, unknown> = {
@@ -264,15 +263,8 @@ export async function generateWorkspaceMedia(
     payload.size = settings.aspectRatio
     payload.image = images[0]
     payload.images = images
-    payload.input_reference = video?.public_url
     if (round.model === 'doubao-seedance-2-0-260128') {
       const content: Array<Record<string, unknown>> = []
-      if (video) {
-        content.push({
-          type: 'video_url',
-          video_url: { url: video.public_url },
-        })
-      }
       for (const image of images) {
         content.push({ type: 'image_url', image_url: { url: image } })
       }
@@ -281,14 +273,14 @@ export async function generateWorkspaceMedia(
         resolution: settings.resolution,
         ratio: settings.aspectRatio,
         duration: Number(settings.duration || 5),
-        generate_audio: settings.audio ?? false,
+        generate_audio: settings.audio ?? true,
       }
     } else {
       payload.metadata = {
         mode: settings.mode,
         aspect_ratio: settings.aspectRatio,
         image_tail: images[1],
-        generate_audio: settings.audio ?? false,
+        generate_audio: settings.audio ?? true,
       }
     }
   }

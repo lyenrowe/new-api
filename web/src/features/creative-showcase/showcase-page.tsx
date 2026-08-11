@@ -145,7 +145,7 @@ export function CreativeShowcasePage() {
                   <Button
                     key={tool.id}
                     variant='outline'
-                    render={<Link to={tool.href} search={{ type: tool.id }} />}
+                    render={<Link to={tool.href} search={tool.search} />}
                   >
                     <HugeiconsIcon
                       icon={creationToolIcons[tool.id]}

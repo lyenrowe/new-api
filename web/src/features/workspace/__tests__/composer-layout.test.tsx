@@ -50,9 +50,11 @@ const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
+const { defaultWorkspaceSettings } = await import('../draft-defaults')
 const { WorkspaceComposer } = await import('../workspace-composer')
 
 type WorkspaceDraftState = import('../types').WorkspaceDraftState
+type WorkspaceType = import('../types').WorkspaceType
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
@@ -61,22 +63,35 @@ await i18n.use(initReactI18next).init({
     en: {
       translation: {
         'Add image': 'Add image',
+        'Add first frame': 'Add first frame',
+        'Add last frame': 'Add last frame',
         'Aspect ratio': 'Aspect ratio',
         Balance: 'Balance',
         'Describe what you want to create': 'Describe what you want to create',
         Generate: 'Generate',
+        'Generate audio': 'Generate audio',
         Group: 'Group',
         Image: 'Image',
         'Image size settings': 'Image size settings',
         Model: 'Model',
+        Mode: 'Mode',
+        'First frame': 'First frame',
+        'First and last frame': 'First and last frame',
+        'Last frame': 'Last frame',
+        'Omni reference': 'Omni reference',
+        Professional: 'Professional',
         Prompt: 'Prompt',
         Provider: 'Provider',
         'Reference images': 'Reference images',
+        'Reference content': 'Reference content',
+        'Remove first frame': 'Remove first frame',
         'Remove image': 'Remove image',
+        'Remove last frame': 'Remove last frame',
         Resolution: 'Resolution',
         'Select a model': 'Select a model',
         'Select group': 'Select group',
         'Select provider': 'Select provider',
+        Standard: 'Standard',
         Text: 'Text',
         Video: 'Video',
       },
@@ -84,16 +99,18 @@ await i18n.use(initReactI18next).init({
   },
 })
 
-const assets = [1, 2, 3].map((id) => ({
-  id,
-  kind: 'image' as const,
-  origin: 'upload' as const,
-  name: `Reference ${id}`,
-  public_url: `/reference-${id}.png`,
-  mime_type: 'image/png',
-  size: 100,
-  created_at: '2026-08-11T00:00:00Z',
-}))
+const assets = Array.from({ length: 13 }, (_, index) => index + 1).map(
+  (id) => ({
+    id,
+    kind: 'image' as const,
+    origin: 'upload' as const,
+    name: `Reference ${id}`,
+    public_url: `/reference-${id}.png`,
+    mime_type: 'image/png',
+    size: 100,
+    created_at: '2026-08-11T00:00:00Z',
+  })
+)
 
 const capabilities: import('../types').WorkspaceCapabilities = {
   text_models: [],
@@ -114,16 +131,66 @@ const capabilities: import('../types').WorkspaceCapabilities = {
       ],
     },
   ],
-  video_models: [],
+  video_models: [
+    {
+      model: 'doubao-seedance-2-0-260128',
+      vendor: 'ByteDance',
+      type: 'video',
+      groups: ['vip'],
+      reference_limit: 12,
+      resolutions: [{ value: '720p', label: '720p' }],
+      aspect_ratios: [{ value: '16:9', label: '16:9' }],
+      modes: [
+        { value: 'first_last', label: 'First and last frame' },
+        { value: 'omni_reference', label: 'Omni reference' },
+      ],
+      durations: [{ value: '5', label: '5s' }],
+      supports_audio: true,
+      supports_frames: true,
+    },
+    {
+      model: 'kling-v3',
+      vendor: 'Kling',
+      type: 'video',
+      groups: ['vip'],
+      reference_limit: 2,
+      aspect_ratios: [{ value: '16:9', label: '16:9' }],
+      modes: [
+        { value: 'std', label: 'Standard' },
+        { value: 'pro', label: 'Professional' },
+      ],
+      durations: [{ value: '5', label: '5s' }],
+      supports_audio: true,
+      supports_frames: true,
+    },
+  ],
 }
 
-function ComposerHarness(props: { assetTotal?: number; compact?: boolean }) {
+function ComposerHarness(props: {
+  assetTotal?: number
+  compact?: boolean
+  mode?: string
+  model?: string
+  type?: WorkspaceType
+}) {
+  const type = props.type || 'image'
+  const model = props.model || 'gpt-image-2'
   const [draft, setDraft] = useState<WorkspaceDraftState>({
-    model: 'gpt-image-2',
+    model,
     group: 'vip',
     prompt: 'A mountain lake at dawn',
-    settings: { aspectRatio: '2:3', resolution: '2K' },
-    assets: assets.slice(0, props.assetTotal ?? assets.length),
+    settings:
+      type === 'video'
+        ? {
+            aspectRatio: '16:9',
+            audio: true,
+            duration: '5',
+            mode: props.mode || (model === 'kling-v3' ? 'std' : 'first_last'),
+            resolution:
+              model === 'doubao-seedance-2-0-260128' ? '720p' : undefined,
+          }
+        : { aspectRatio: '2:3', resolution: '2K' },
+    assets: assets.slice(0, props.assetTotal ?? 3),
   })
   return (
     <I18nextProvider i18n={i18n}>
@@ -134,7 +201,7 @@ function ComposerHarness(props: { assetTotal?: number; compact?: boolean }) {
         draft={draft}
         groups={{ vip: { desc: 'VIP', ratio: 1 } }}
         submitting={false}
-        type='image'
+        type={type}
         onDraftChange={setDraft}
         onExpand={() => {}}
         onInteractionChange={() => {}}
@@ -156,9 +223,28 @@ async function renderComposer(compact = false, assetTotal = assets.length) {
   return { container, root }
 }
 
-describe('workspace composer layout', () => {
-  after(() => domWindow.close())
+async function renderVideoComposer(props: {
+  assetTotal?: number
+  mode?: string
+  model: string
+}) {
+  const container = document.createElement('div')
+  document.body.append(container)
+  const root = createRoot(container)
+  await act(async () =>
+    root.render(
+      <ComposerHarness
+        assetTotal={props.assetTotal ?? 0}
+        mode={props.mode}
+        model={props.model}
+        type='video'
+      />
+    )
+  )
+  return { container, root }
+}
 
+describe('workspace composer layout', () => {
   test('reserves one reference slot while rendering uploaded images as a stack', async () => {
     const rendered = await renderComposer()
     const editor = rendered.container.querySelector(
@@ -304,3 +390,122 @@ describe('workspace composer layout', () => {
     rendered.container.remove()
   })
 })
+
+describe('workspace video references', () => {
+  test('defaults Seedance to optional frame slots with audio enabled', async () => {
+    const seedance = capabilities.video_models[0]
+    const defaults = defaultWorkspaceSettings(seedance)
+    assert.equal(defaults.mode, 'first_last')
+    assert.equal(defaults.audio, true)
+
+    const rendered = await renderVideoComposer({
+      model: 'doubao-seedance-2-0-260128',
+    })
+    const first = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add first frame"]'
+    )
+    const last = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add last frame"]'
+    )
+    const mode = rendered.container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Mode"]'
+    )
+    const audio =
+      rendered.container.querySelector<HTMLElement>('[role="switch"]')
+
+    assert.equal(first?.disabled, false)
+    assert.equal(last?.disabled, true)
+    assert.deepEqual(
+      [...(mode?.options || [])].map((option) => option.value),
+      ['', 'first_last', 'omni_reference']
+    )
+    assert.equal(audio?.getAttribute('aria-checked'), 'true')
+    assert.equal(
+      rendered.container.textContent?.includes('Upload source video'),
+      false
+    )
+
+    await act(async () => rendered.root.unmount())
+    rendered.container.remove()
+  })
+
+  test('enables the last frame after a first frame and clears both when first is removed', async () => {
+    const rendered = await renderVideoComposer({
+      assetTotal: 2,
+      model: 'doubao-seedance-2-0-260128',
+    })
+    const removeFirst = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove first frame"]'
+    )
+    assert.ok(removeFirst)
+    assert.ok(
+      rendered.container.querySelector('button[aria-label="Remove last frame"]')
+    )
+
+    await act(async () => removeFirst.click())
+    assert.ok(
+      rendered.container.querySelector('button[aria-label="Add first frame"]')
+    )
+    assert.equal(
+      rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Add last frame"]'
+      )?.disabled,
+      true
+    )
+
+    await act(async () => rendered.root.unmount())
+    rendered.container.remove()
+  })
+
+  test('shows all twelve Seedance omni references without an extra upload slot', async () => {
+    const rendered = await renderVideoComposer({
+      assetTotal: 12,
+      mode: 'omni_reference',
+      model: 'doubao-seedance-2-0-260128',
+    })
+    const trigger = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reference content"]'
+    )
+    assert.ok(trigger)
+
+    await act(async () => trigger.click())
+    const expanded = document.querySelector('[data-reference-images-expanded]')
+    assert.equal(
+      expanded?.querySelectorAll('button[aria-label="Remove image"]').length,
+      12
+    )
+    assert.equal(
+      expanded?.querySelector('button[aria-label="Add image"]'),
+      null
+    )
+
+    await act(async () => rendered.root.unmount())
+    rendered.container.remove()
+  })
+
+  test('keeps Kling modes while exposing optional first and last frames', async () => {
+    const rendered = await renderVideoComposer({ model: 'kling-v3' })
+    const mode = rendered.container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Mode"]'
+    )
+
+    assert.deepEqual(
+      [...(mode?.options || [])].map((option) => option.value),
+      ['', 'std', 'pro']
+    )
+    assert.ok(
+      rendered.container.querySelector('button[aria-label="Add first frame"]')
+    )
+    assert.equal(
+      rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Add last frame"]'
+      )?.disabled,
+      true
+    )
+
+    await act(async () => rendered.root.unmount())
+    rendered.container.remove()
+  })
+})
+
+after(() => domWindow.close())

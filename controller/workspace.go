@@ -783,33 +783,24 @@ func canonicalWorkspacePayload(db *gorm.DB, round *workspaceData.Round, assets [
 		if len(images) > 0 {
 			payload["image"] = images[0]
 		}
-		if videoURL != "" {
-			payload["input_reference"] = videoURL
-		}
 		if round.Model == "doubao-seedance-2-0-260128" {
-			mode := workspaceSettingString(settings, "mode", "omni_reference")
+			mode := workspaceSettingString(settings, "mode", "first_last")
 			resolution := workspaceSettingString(settings, "resolution", "720p")
 			if !workspaceOptionAllowed(capability.Modes, mode) || !workspaceOptionAllowed(capability.Resolutions, resolution) {
 				return nil, "", errors.New("workspace Seedance settings are invalid")
 			}
-			if mode == "video_edit" && videoURL == "" {
-				return nil, "", errors.New("Seedance video editing requires a source video")
-			}
-			content := make([]map[string]any, 0, len(images)+1)
-			if videoURL != "" {
-				content = append(content, map[string]any{"type": "video_url", "video_url": map[string]string{"url": videoURL}})
-			}
+			content := make([]map[string]any, 0, len(images))
 			for _, imageURL := range images {
 				content = append(content, map[string]any{"type": "image_url", "image_url": map[string]string{"url": imageURL}})
 			}
-			payload["metadata"] = map[string]any{"content": content, "resolution": resolution, "ratio": aspectRatio, "duration": duration, "generate_audio": workspaceSettingBool(settings, "audio")}
+			payload["metadata"] = map[string]any{"content": content, "resolution": resolution, "ratio": aspectRatio, "duration": duration, "generate_audio": workspaceSettingBool(settings, "audio", true)}
 		} else {
 			mode := workspaceSettingString(settings, "mode", "std")
 			if !workspaceOptionAllowed(capability.Modes, mode) {
 				return nil, "", errors.New("workspace Kling mode is invalid")
 			}
 			payload["mode"] = mode
-			metadata := map[string]any{"mode": mode, "aspect_ratio": aspectRatio, "generate_audio": workspaceSettingBool(settings, "audio")}
+			metadata := map[string]any{"mode": mode, "aspect_ratio": aspectRatio, "generate_audio": workspaceSettingBool(settings, "audio", true)}
 			if len(images) > 1 {
 				metadata["image_tail"] = images[1]
 			}
@@ -973,19 +964,15 @@ func validateWorkspaceRoundInput(userID int, input workspaceData.RoundInput) err
 		}
 		return nil
 	}
-	mode := workspaceSettingString(settings, "mode", "omni_reference")
+	mode := workspaceSettingString(settings, "mode", "first_last")
 	switch mode {
 	case "first_last":
 		if videoCount > 0 || imageCount > 2 {
 			return errors.New("Seedance first and last frame mode accepts at most two images")
 		}
 	case "omni_reference":
-		if videoCount > 0 || imageCount > 4 {
-			return errors.New("Seedance omni reference mode accepts at most four images")
-		}
-	case "video_edit":
-		if videoCount != 1 || imageCount > 4 {
-			return errors.New("Seedance video editing requires one video and at most four images")
+		if videoCount > 0 || imageCount > 12 {
+			return errors.New("Seedance omni reference mode accepts at most twelve images")
 		}
 	default:
 		return errors.New("workspace Seedance mode is invalid")
@@ -1027,8 +1014,11 @@ func workspaceSettingInt(settings map[string]any, key string, fallback int) int 
 	return fallback
 }
 
-func workspaceSettingBool(settings map[string]any, key string) bool {
-	value, _ := settings[key].(bool)
+func workspaceSettingBool(settings map[string]any, key string, fallback bool) bool {
+	value, ok := settings[key].(bool)
+	if !ok {
+		return fallback
+	}
 	return value
 }
 

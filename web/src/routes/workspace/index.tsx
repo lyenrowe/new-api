@@ -28,5 +28,10 @@ export const Route = createFileRoute('/workspace/')({
       })
     }
   },
-  component: WorkspacePage,
+  component: WorkspaceRoute,
 })
+
+function WorkspaceRoute() {
+  const search = Route.useSearch()
+  return <WorkspacePage caseId={search.caseId} initialType={search.type} />
+}

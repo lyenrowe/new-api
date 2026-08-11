@@ -12,7 +12,22 @@ export const showcaseContentTypes = [
 ] as const
 
 export const showcaseCreationTools = [
-  { id: 'text', labelKey: 'Text generation', href: '/workspace' },
-  { id: 'image', labelKey: 'Image generation', href: '/workspace' },
-  { id: 'video', labelKey: 'Video generation', href: '/workspace' },
+  {
+    id: 'text',
+    labelKey: 'Text generation',
+    href: '/workspace',
+    search: { type: 'text' },
+  },
+  {
+    id: 'image',
+    labelKey: 'Image generation',
+    href: '/workspace',
+    search: { type: 'image' },
+  },
+  {
+    id: 'video',
+    labelKey: 'Video generation',
+    href: '/workspace',
+    search: { type: 'video' },
+  },
 ] as const

@@ -10,7 +10,7 @@ import { Menu01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -55,7 +55,10 @@ import {
   WorkspaceAPIKeyRequiredError,
 } from './api'
 import { ConversationSidebar } from './conversation-sidebar'
-import { defaultWorkspaceSettings } from './draft-defaults'
+import {
+  defaultWorkspaceSettings,
+  normalizeWorkspaceDraft,
+} from './draft-defaults'
 import { workspaceGroupForModel, workspaceModelOptions } from './model-options'
 import { RoundList } from './round-list'
 import type {
@@ -69,6 +72,7 @@ import type {
   WorkspaceType,
 } from './types'
 import { WorkspaceComposer } from './workspace-composer'
+import { resolveWorkspaceEntryType } from './workspace-entry'
 
 const emptyDraft: WorkspaceDraftState = {
   model: '',
@@ -78,17 +82,25 @@ const emptyDraft: WorkspaceDraftState = {
   assets: [],
 }
 
-export function WorkspacePage() {
+export function WorkspacePage(props: {
+  caseId?: number
+  initialType?: WorkspaceType
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<number>()
+  const [entryType, setEntryType] = useState(props.initialType)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [renameTarget, setRenameTarget] = useState<WorkspaceConversation>()
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceConversation>()
   const [renameValue, setRenameValue] = useState('')
+  const clearEntryType = useCallback(() => setEntryType(undefined), [])
   const initialized = useRef(false)
-  const initialParams = useRef(readWorkspaceSearch())
+  const initialParams = useRef({
+    caseId: props.caseId,
+    type: props.initialType,
+  })
   const conversations = useQuery({
     queryKey: ['workspace', 'conversations', search],
     queryFn: () => getWorkspaceConversations(search),
@@ -117,7 +129,7 @@ export function WorkspacePage() {
         })
         .catch(() => {
           toast.error(t('Unable to load case preset'))
-          createConversation.mutate(initialParams.current.type)
+          createConversation.mutate(initialParams.current.type || 'text')
         })
       return
     }
@@ -126,7 +138,7 @@ export function WorkspacePage() {
       setSelectedId(first.id)
       return
     }
-    createConversation.mutate(initialParams.current.type)
+    createConversation.mutate(initialParams.current.type || 'text')
   }, [conversations.data, createConversation, queryClient, t])
 
   const selectConversation = (id: number) => {
@@ -138,7 +150,9 @@ export function WorkspacePage() {
       conversations={conversations.data?.items || []}
       search={search}
       selectedId={selectedId}
-      onCreate={() => createConversation.mutate(initialParams.current.type)}
+      onCreate={() =>
+        createConversation.mutate(initialParams.current.type || 'text')
+      }
       onDelete={setDeleteTarget}
       onRename={(conversation) => {
         setRenameValue(conversation.title)
@@ -176,9 +190,10 @@ export function WorkspacePage() {
           </Button>
           {selectedId ? (
             <WorkspaceSession
-              initialType={initialParams.current.type}
+              initialType={entryType}
               key={selectedId}
               conversationId={selectedId}
+              onInitialTypeApplied={clearEntryType}
             />
           ) : (
             <div className='text-muted-foreground flex h-full items-center justify-center text-sm'>
@@ -275,7 +290,8 @@ export function WorkspacePage() {
 
 function WorkspaceSession(props: {
   conversationId: number
-  initialType: WorkspaceType
+  initialType?: WorkspaceType
+  onInitialTypeApplied: () => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -302,7 +318,10 @@ function WorkspaceSession(props: {
   const imageAssetItems = imageAssets.data?.items
   const videoAssetItems = videoAssets.data?.items
   const [activeType, setActiveType] = useState<WorkspaceType>(
-    detail.data?.conversation.active_type || props.initialType
+    resolveWorkspaceEntryType(
+      props.initialType,
+      detail.data?.conversation.active_type
+    )
   )
   const [drafts, setDrafts] = useState<
     Record<WorkspaceType, WorkspaceDraftState>
@@ -322,6 +341,9 @@ function WorkspaceSession(props: {
   const composerInteracting = useRef(false)
   const lastScrollTop = useRef(0)
   const observedStatuses = useRef(new Map<number, string>())
+  const requestedEntryType = props.initialType
+  const notifyInitialTypeApplied = props.onInitialTypeApplied
+  const sessionConversationId = props.conversationId
   const currentDraft = drafts[activeType]
   const capabilities = useQuery({
     queryKey: ['workspace', 'capabilities'],
@@ -343,9 +365,29 @@ function WorkspaceSession(props: {
       return
     }
     hydrated.current = true
-    setActiveType(detail.data.conversation.active_type || props.initialType)
+    const resolvedEntryType = resolveWorkspaceEntryType(
+      requestedEntryType,
+      detail.data.conversation.active_type
+    )
+    setActiveType(resolvedEntryType)
+    if (
+      requestedEntryType &&
+      requestedEntryType !== detail.data.conversation.active_type
+    ) {
+      void updateWorkspaceConversation(sessionConversationId, {
+        active_type: requestedEntryType,
+      })
+    }
+    if (requestedEntryType) notifyInitialTypeApplied()
     setDrafts(createDraftMap(detail.data, imageAssetItems, videoAssetItems))
-  }, [detail.data, imageAssetItems, props.initialType, videoAssetItems])
+  }, [
+    detail.data,
+    imageAssetItems,
+    requestedEntryType,
+    videoAssetItems,
+    notifyInitialTypeApplied,
+    sessionConversationId,
+  ])
 
   useEffect(() => {
     if (!capabilities.data || !groups.data || !pricing.data) return
@@ -534,13 +576,6 @@ function WorkspaceSession(props: {
   }
 
   const upload = async (kind: 'image' | 'video', file: File) => {
-    if (
-      kind === 'image' &&
-      drafts[activeType].assets.filter((asset) => asset.kind === 'image')
-        .length >= 3
-    ) {
-      return
-    }
     setUploadProgress(0)
     try {
       const asset = await uploadWorkspaceAsset(kind, file, setUploadProgress)
@@ -755,13 +790,13 @@ function createDraftMap(
       settings = {}
       assetIds = []
     }
-    map[draft.type] = {
+    map[draft.type] = normalizeWorkspaceDraft({
       model: draft.model,
       group: draft.group,
       prompt: draft.prompt,
       settings,
       assets: assets.filter((asset) => assetIds.includes(asset.id)),
-    }
+    })
   }
   return map
 }
@@ -779,13 +814,13 @@ function draftFromRound(
     settings = {}
     assetIds = []
   }
-  return {
+  return normalizeWorkspaceDraft({
     model: round.model,
     group: round.group,
     prompt: round.prompt,
     settings,
     assets: assets.filter((asset) => assetIds.includes(asset.id)),
-  }
+  })
 }
 
 function hasGeneratingVideo(detail?: WorkspaceConversationDetail) {
@@ -794,14 +829,4 @@ function hasGeneratingVideo(detail?: WorkspaceConversationDetail) {
       (round) => round.type === 'video' && round.status === 'generating'
     )
   )
-}
-
-function readWorkspaceSearch(): { type: WorkspaceType; caseId?: number } {
-  const params = new URLSearchParams(window.location.search)
-  const type = params.get('type')
-  const caseId = Number(params.get('caseId'))
-  return {
-    type: type === 'image' || type === 'video' ? type : 'text',
-    caseId: Number.isInteger(caseId) && caseId > 0 ? caseId : undefined,
-  }
 }

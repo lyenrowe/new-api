@@ -11,7 +11,6 @@ import {
   AiImageIcon,
   AiVideoIcon,
   ArrowDown01Icon,
-  Attachment01Icon,
   Cancel01Icon,
   SentIcon,
   TextCreationIcon,
@@ -86,7 +85,6 @@ const imageResolutions = ['2K', '4K']
 export function WorkspaceComposer(props: WorkspaceComposerProps) {
   const { t } = useTranslation()
   const fileInput = useRef<HTMLInputElement>(null)
-  const videoInput = useRef<HTMLInputElement>(null)
   const capability = selectedCapability(
     props.type,
     props.draft.model,
@@ -123,6 +121,22 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
     !props.draft.prompt.trim() ||
     !props.draft.model ||
     !props.draft.group
+  const frameReferences = usesFrameReferenceSlots(
+    props.type,
+    props.draft.model,
+    props.draft.settings.mode
+  )
+  const referenceLimit = workspaceReferenceImageLimit(
+    props.type,
+    capability,
+    props.draft.settings.mode
+  )
+  let editorGridClass = 'grid-cols-1'
+  if (props.type !== 'text') {
+    editorGridClass = frameReferences
+      ? 'grid-cols-[12.5rem_minmax(0,1fr)]'
+      : 'grid-cols-[6.75rem_minmax(0,1fr)]'
+  }
 
   return (
     <div
@@ -265,7 +279,7 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
             type='file'
             onChange={(event) => {
               const file = event.target.files?.[0]
-              if (file && imageCount(props.draft.assets) < 3) {
+              if (file && imageCount(props.draft.assets) < referenceLimit) {
                 props.onUpload('image', file)
               }
               event.target.value = ''
@@ -273,18 +287,39 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
           />
 
           <div
-            className={cn(
-              'grid min-w-0 items-start gap-3',
-              props.type === 'text'
-                ? 'grid-cols-1'
-                : 'grid-cols-[6.75rem_minmax(0,1fr)]'
-            )}
+            className={cn('grid min-w-0 items-start gap-3', editorGridClass)}
             data-workspace-editor-layout
           >
-            {props.type !== 'text' && (
+            {props.type !== 'text' && frameReferences && (
+              <FrameReferences
+                assets={props.draft.assets}
+                disabled={props.uploadProgress !== undefined}
+                onRemove={(asset, frame) =>
+                  props.onDraftChange({
+                    ...props.draft,
+                    assets:
+                      frame === 'first'
+                        ? props.draft.assets.filter(
+                            (current) => current.kind !== 'image'
+                          )
+                        : props.draft.assets.filter(
+                            (current) => current.id !== asset.id
+                          ),
+                  })
+                }
+                onUpload={() => fileInput.current?.click()}
+              />
+            )}
+            {props.type !== 'text' && !frameReferences && (
               <ReferenceImages
                 assets={props.draft.assets}
                 disabled={props.uploadProgress !== undefined}
+                label={
+                  props.type === 'video'
+                    ? t('Reference content')
+                    : t('Reference images')
+                }
+                maxImages={referenceLimit}
                 onOpenChange={(open) => {
                   overlayOpen.current = open
                   props.onInteractionChange(open || focusWithin.current)
@@ -339,30 +374,6 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
                 onDraftChange={props.onDraftChange}
               />
             )}
-            {props.type === 'video' && capability?.supports_video && (
-              <>
-                <input
-                  ref={videoInput}
-                  accept='video/*'
-                  className='hidden'
-                  type='file'
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) props.onUpload('video', file)
-                    event.target.value = ''
-                  }}
-                />
-                <Button
-                  disabled={props.uploadProgress !== undefined}
-                  size='sm'
-                  variant='outline'
-                  onClick={() => videoInput.current?.click()}
-                >
-                  <HugeiconsIcon icon={Attachment01Icon} strokeWidth={2} />
-                  {t('Upload source video')}
-                </Button>
-              </>
-            )}
             {props.uploadProgress !== undefined && (
               <span className='text-muted-foreground text-xs'>
                 {t('Upload')} {props.uploadProgress}%
@@ -416,12 +427,25 @@ function CompactComposer(props: {
   onUpload: () => void
 }) {
   const { t } = useTranslation()
+  const frameReferences = usesFrameReferenceSlots(
+    props.type,
+    props.draft.model,
+    props.draft.settings.mode
+  )
+  let referenceLabel: string | undefined
+  if (frameReferences) {
+    referenceLabel = t('First and last frame')
+  } else if (props.type === 'video') {
+    referenceLabel = t('Reference content')
+  }
   return (
     <div className='flex min-w-0 items-center gap-2'>
       {props.type !== 'text' && (
         <ReferenceImageStack
           assets={props.draft.assets}
           compact
+          emptyLabel={frameReferences ? t('Add first frame') : undefined}
+          label={referenceLabel}
           onOpen={props.onExpand}
           onUpload={props.onUpload}
         />
@@ -457,9 +481,88 @@ function CompactComposer(props: {
   )
 }
 
+function FrameReferences(props: {
+  assets: WorkspaceAsset[]
+  disabled: boolean
+  onRemove: (asset: WorkspaceAsset, frame: 'first' | 'last') => void
+  onUpload: () => void
+}) {
+  const { t } = useTranslation()
+  const images = props.assets
+    .filter((asset) => asset.kind === 'image')
+    .slice(0, 2)
+  const frames = [
+    {
+      asset: images[0],
+      frame: 'first' as const,
+      label: t('First frame'),
+      addLabel: t('Add first frame'),
+      disabled: props.disabled,
+    },
+    {
+      asset: images[1],
+      frame: 'last' as const,
+      label: t('Last frame'),
+      addLabel: t('Add last frame'),
+      disabled: props.disabled || !images[0],
+    },
+  ]
+
+  return (
+    <div className='flex h-28 items-stretch gap-2' data-frame-references>
+      {frames.map((item) => (
+        <div className='relative h-28 w-24 shrink-0' key={item.frame}>
+          {item.asset ? (
+            <>
+              <img
+                alt={item.asset.name}
+                className='h-full w-full rounded-xl border object-cover shadow-sm'
+                src={item.asset.public_url}
+              />
+              <span className='bg-background/85 absolute inset-x-1 bottom-1 truncate rounded px-1 py-0.5 text-center text-xs font-medium backdrop-blur-sm'>
+                {item.label}
+              </span>
+              <Button
+                aria-label={
+                  item.frame === 'first'
+                    ? t('Remove first frame')
+                    : t('Remove last frame')
+                }
+                className='absolute -top-1.5 -right-1.5 rounded-full shadow-sm'
+                size='icon-xs'
+                variant='secondary'
+                onClick={() => props.onRemove(item.asset, item.frame)}
+              >
+                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+              </Button>
+            </>
+          ) : (
+            <button
+              aria-label={item.addLabel}
+              className='text-muted-foreground hover:text-foreground hover:bg-muted bg-background focus-visible:ring-ring/50 flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-2 outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40'
+              disabled={item.disabled}
+              type='button'
+              onClick={props.onUpload}
+            >
+              <HugeiconsIcon
+                className='size-6'
+                icon={Add01Icon}
+                strokeWidth={2}
+              />
+              <span className='text-xs font-medium'>{item.label}</span>
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ReferenceImages(props: {
   assets: WorkspaceAsset[]
   disabled: boolean
+  label: string
+  maxImages: number
   onOpenChange: (open: boolean) => void
   onRemove: (asset: WorkspaceAsset) => void
   onUpload: () => void
@@ -469,7 +572,7 @@ function ReferenceImages(props: {
   const closeTimer = useRef<number | undefined>(undefined)
   const images = props.assets
     .filter((asset) => asset.kind === 'image')
-    .slice(0, 3)
+    .slice(0, props.maxImages)
   const assets = [
     ...props.assets.filter((asset) => asset.kind === 'video').slice(0, 1),
     ...images,
@@ -510,13 +613,14 @@ function ReferenceImages(props: {
             <ReferenceImageStack
               assets={assets}
               disabled={props.disabled}
+              label={props.label}
               onOpen={openNow}
               onUpload={props.onUpload}
             />
           }
         />
         <PopoverContent
-          aria-label={t('Reference images')}
+          aria-label={props.label}
           className='w-auto max-w-[calc(100vw-2rem)] gap-2 overflow-x-auto p-3'
           align='start'
           collisionPadding={12}
@@ -559,7 +663,7 @@ function ReferenceImages(props: {
                 </Button>
               </div>
             ))}
-            {imageCount(images) < 3 && (
+            {imageCount(images) < props.maxImages && (
               <button
                 aria-label={t('Add image')}
                 className='text-muted-foreground hover:text-foreground hover:bg-muted bg-background focus-visible:ring-ring/50 flex h-28 w-24 shrink-0 items-center justify-center rounded-xl border border-dashed outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50'
@@ -594,7 +698,7 @@ function ReferenceImages(props: {
           <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
         </Button>
       )}
-      {topAsset && imageCount(images) < 3 && (
+      {topAsset && imageCount(images) < props.maxImages && (
         <Button
           aria-label={t('Add image')}
           className='pointer-events-none absolute right-1 -bottom-1 z-20 rounded-full opacity-0 shadow-sm transition-opacity group-focus-within/reference:pointer-events-auto group-focus-within/reference:opacity-100 group-hover/reference:pointer-events-auto group-hover/reference:opacity-100 motion-reduce:transition-none'
@@ -618,6 +722,8 @@ function ReferenceImageStack(props: {
   assets: WorkspaceAsset[]
   compact?: boolean
   disabled?: boolean
+  emptyLabel?: string
+  label?: string
   onOpen: () => void
   onUpload: () => void
 }) {
@@ -632,7 +738,11 @@ function ReferenceImageStack(props: {
 
   return (
     <button
-      aria-label={topAsset ? t('Reference images') : t('Add image')}
+      aria-label={
+        topAsset
+          ? props.label || t('Reference images')
+          : props.emptyLabel || t('Add image')
+      }
       className={cn(
         'group relative shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
         stackSize
@@ -829,6 +939,7 @@ function VideoOptions(props: {
       {props.capability.modes && (
         <OptionSelect
           label={t('Mode')}
+          localizeOptions
           options={props.capability.modes}
           value={settings.mode}
           onChange={(value) =>
@@ -867,7 +978,7 @@ function VideoOptions(props: {
         <label className='flex h-8 items-center gap-2 rounded-lg border px-2.5 text-sm'>
           {t('Generate audio')}
           <Switch
-            checked={settings.audio ?? false}
+            checked={settings.audio ?? true}
             onCheckedChange={(checked) => update({ audio: checked })}
           />
         </label>
@@ -878,10 +989,12 @@ function VideoOptions(props: {
 
 function OptionSelect(props: {
   label: string
+  localizeOptions?: boolean
   options: Array<{ value: string; label: string }>
   value?: string
   onChange: (value: string) => void
 }) {
+  const { t } = useTranslation()
   return (
     <NativeSelect
       aria-label={props.label}
@@ -891,7 +1004,7 @@ function OptionSelect(props: {
       <NativeSelectOption value=''>{props.label}</NativeSelectOption>
       {props.options.map((option) => (
         <NativeSelectOption key={option.value} value={option.value}>
-          {option.label}
+          {props.localizeOptions ? t(option.label) : option.label}
         </NativeSelectOption>
       ))}
     </NativeSelect>
@@ -940,11 +1053,32 @@ function assetsForVideoMode(
 ) {
   if (capability.model !== 'doubao-seedance-2-0-260128') return assets
   const images = assets.filter((asset) => asset.kind === 'image')
-  if (mode === 'video_edit') {
-    const video = assets.find((asset) => asset.kind === 'video')
-    return [...(video ? [video] : []), ...images.slice(0, 3)]
+  return images.slice(0, mode === 'first_last' ? 2 : 12)
+}
+
+function usesFrameReferenceSlots(
+  type: WorkspaceType,
+  model: string,
+  mode?: string
+) {
+  if (type !== 'video') return false
+  return model === 'kling-v3' || mode !== 'omni_reference'
+}
+
+function workspaceReferenceImageLimit(
+  type: WorkspaceType,
+  capability: WorkspaceModelCapability | undefined,
+  mode?: string
+) {
+  if (type === 'image') return 3
+  if (type !== 'video' || !capability) return 0
+  if (
+    capability.model === 'doubao-seedance-2-0-260128' &&
+    mode === 'omni_reference'
+  ) {
+    return 12
   }
-  return images.slice(0, mode === 'first_last' ? 2 : 3)
+  return 2
 }
 
 function workspaceTypeLabel(type: WorkspaceType) {

@@ -28,5 +28,9 @@ describe('creative showcase layout', () => {
       showcaseCreationTools.every((item) => item.href === '/workspace'),
       true
     )
+    assert.deepEqual(
+      showcaseCreationTools.map((item) => item.search.type),
+      ['text', 'image', 'video']
+    )
   })
 })

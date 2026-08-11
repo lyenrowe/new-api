@@ -47,6 +47,79 @@ func TestWorkspaceCanonicalPayloadKeepsImageCountAndKlingFalseAudio(t *testing.T
 	assert.Equal(t, false, metadata["generate_audio"])
 }
 
+func TestWorkspaceVideoPayloadDefaultsAudioAndKeepsKlingFrameOrder(t *testing.T) {
+	seedanceRound := &workspaceData.Round{ID: 3, UserID: 10, Type: workspaceData.KindVideo, Model: "doubao-seedance-2-0-260128", Prompt: "orbit"}
+	seedancePayload, _, err := canonicalWorkspacePayload(nil, seedanceRound, nil, map[string]any{})
+	require.NoError(t, err)
+	seedanceMetadata, ok := seedancePayload["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, seedanceMetadata["generate_audio"])
+	assert.Empty(t, seedanceMetadata["content"])
+
+	klingRound := &workspaceData.Round{ID: 4, UserID: 10, Type: workspaceData.KindVideo, Model: "kling-v3", Prompt: "orbit"}
+	assets := []workspaceData.Asset{
+		{Kind: workspaceData.KindImage, PublicURL: "https://example.com/first.png"},
+		{Kind: workspaceData.KindImage, PublicURL: "https://example.com/last.png"},
+	}
+	klingPayload, _, err := canonicalWorkspacePayload(nil, klingRound, assets, map[string]any{"audio": false})
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.com/first.png", klingPayload["image"])
+	klingMetadata, ok := klingPayload["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "https://example.com/last.png", klingMetadata["image_tail"])
+	assert.Equal(t, false, klingMetadata["generate_audio"])
+}
+
+func TestWorkspaceSeedanceReferenceValidationAllowsTwelveImages(t *testing.T) {
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, workspaceData.Migrate(db))
+	previousDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = previousDB })
+
+	assetIDs := make([]int64, 0, 13)
+	for index := 0; index < 13; index++ {
+		asset := workspaceData.Asset{
+			UserID:    10,
+			Kind:      workspaceData.KindImage,
+			Origin:    "upload",
+			Name:      fmt.Sprintf("reference-%d.png", index),
+			PublicURL: fmt.Sprintf("https://example.com/reference-%d.png", index),
+			MIMEType:  "image/png",
+			Size:      100,
+		}
+		require.NoError(t, db.Create(&asset).Error)
+		assetIDs = append(assetIDs, asset.ID)
+	}
+
+	settings, err := common.Marshal(map[string]any{"mode": "omni_reference", "duration": 5})
+	require.NoError(t, err)
+	encodeIDs := func(ids []int64) string {
+		encoded, marshalErr := common.Marshal(ids)
+		require.NoError(t, marshalErr)
+		return string(encoded)
+	}
+	input := workspaceData.RoundInput{
+		Type:     workspaceData.KindVideo,
+		Model:    "doubao-seedance-2-0-260128",
+		Prompt:   "orbit",
+		Settings: string(settings),
+		AssetIDs: encodeIDs(assetIDs[:12]),
+	}
+	require.NoError(t, validateWorkspaceRoundInput(10, input))
+
+	input.AssetIDs = encodeIDs(assetIDs)
+	assert.EqualError(t, validateWorkspaceRoundInput(10, input), "Seedance omni reference mode accepts at most twelve images")
+
+	legacySettings, err := common.Marshal(map[string]any{"mode": "video_edit", "duration": 5})
+	require.NoError(t, err)
+	input.Settings = string(legacySettings)
+	input.AssetIDs = ""
+	assert.EqualError(t, validateWorkspaceRoundInput(10, input), "workspace Seedance mode is invalid")
+}
+
 func TestWorkspaceTextStreamExtraction(t *testing.T) {
 	result, err := workspaceTextFromStream([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"hello \"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"world\"}}]}\n\ndata: [DONE]\n\n"))
 	require.NoError(t, err)

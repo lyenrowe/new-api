@@ -48,7 +48,7 @@ var ImageCapabilities = []ModelCapability{
 }
 
 var VideoCapabilities = []ModelCapability{
-	{Model: "doubao-seedance-2-0-260128", Vendor: "ByteDance", Type: KindVideo, ReferenceLimit: 4, Resolutions: []Option{{Value: "480p", Label: "480p"}, {Value: "720p", Label: "720p"}, {Value: "1080p", Label: "1080p"}}, AspectRatios: []Option{{Value: "16:9", Label: "16:9"}, {Value: "9:16", Label: "9:16"}, {Value: "1:1", Label: "1:1"}, {Value: "4:3", Label: "4:3"}, {Value: "3:4", Label: "3:4"}}, Modes: []Option{{Value: "omni_reference", Label: "Omni reference"}, {Value: "first_last", Label: "First and last frame"}, {Value: "video_edit", Label: "Video editing"}}, Durations: durationOptions(4, 15), SupportsAudio: true, SupportsFrames: true, SupportsVideo: true, SupportsEditing: true},
+	{Model: "doubao-seedance-2-0-260128", Vendor: "ByteDance", Type: KindVideo, ReferenceLimit: 12, Resolutions: []Option{{Value: "480p", Label: "480p"}, {Value: "720p", Label: "720p"}, {Value: "1080p", Label: "1080p"}}, AspectRatios: []Option{{Value: "16:9", Label: "16:9"}, {Value: "9:16", Label: "9:16"}, {Value: "1:1", Label: "1:1"}, {Value: "4:3", Label: "4:3"}, {Value: "3:4", Label: "3:4"}}, Modes: []Option{{Value: "first_last", Label: "First and last frame"}, {Value: "omni_reference", Label: "Omni reference"}}, Durations: durationOptions(4, 15), SupportsAudio: true, SupportsFrames: true},
 	{Model: "kling-v3", Vendor: "Kling", Type: KindVideo, ReferenceLimit: 2, AspectRatios: []Option{{Value: "16:9", Label: "16:9"}, {Value: "9:16", Label: "9:16"}, {Value: "1:1", Label: "1:1"}}, Modes: []Option{{Value: "std", Label: "Standard"}, {Value: "pro", Label: "Professional"}}, Durations: durationOptions(3, 15), SupportsAudio: true, SupportsFrames: true},
 }
 

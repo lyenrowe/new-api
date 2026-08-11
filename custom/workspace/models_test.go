@@ -54,6 +54,10 @@ func TestWorkspaceCapabilityAliasesRemainExact(t *testing.T) {
 	}
 	assert.Equal(t, []string{"gpt-image-2", "gpt-image-2-sp", "gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview", "ByteDance-Seedream-5.0"}, imageModels)
 	assert.Equal(t, []string{"doubao-seedance-2-0-260128", "kling-v3"}, videoModels)
+	require.Len(t, VideoCapabilities, 2)
+	assert.Equal(t, 12, VideoCapabilities[0].ReferenceLimit)
+	assert.Equal(t, []Option{{Value: "first_last", Label: "First and last frame"}, {Value: "omni_reference", Label: "Omni reference"}}, VideoCapabilities[0].Modes)
+	assert.False(t, VideoCapabilities[0].SupportsVideo)
 }
 
 func TestClaimRoundAllowsOnlyOneGeneration(t *testing.T) {
