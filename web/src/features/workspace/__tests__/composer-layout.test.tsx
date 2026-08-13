@@ -245,6 +245,19 @@ async function renderVideoComposer(props: {
 }
 
 describe('workspace composer layout', () => {
+  test('formats the stored quota as the configured balance currency', async () => {
+    const rendered = await renderComposer()
+
+    assert.ok(rendered.container.textContent?.includes('Balance: $0.0024'))
+    assert.equal(
+      rendered.container.textContent?.includes('Balance: 1200'),
+      false
+    )
+
+    await act(async () => rendered.root.unmount())
+    rendered.container.remove()
+  })
+
   test('reserves one reference slot while rendering uploaded images as a stack', async () => {
     const rendered = await renderComposer()
     const editor = rendered.container.querySelector(

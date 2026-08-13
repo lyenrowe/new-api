@@ -493,6 +493,12 @@ func GetSelf(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	quota, err := model.GetUserQuota(id, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	user.Quota = quota
 	responseData := buildSelfUserData(user)
 	// The authenticated role is loaded from GetUserCache. It should equal the
 	// row role, but use it for capabilities so GetSelf and login/refresh remain

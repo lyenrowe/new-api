@@ -297,6 +297,9 @@ function WorkspaceSession(props: {
   const queryClient = useQueryClient()
   const balance = useAuthStore((state) => state.auth.user?.quota || 0)
   const setUser = useAuthStore((state) => state.auth.setUser)
+  useEffect(() => {
+    void refreshWorkspaceUser(setUser)
+  }, [setUser])
   const detail = useQuery({
     queryKey: ['workspace', 'conversation', props.conversationId],
     queryFn: () => getWorkspaceConversation(props.conversationId),

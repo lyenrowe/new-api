@@ -30,6 +30,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { PricingData } from '@/features/pricing/types'
+import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { defaultWorkspaceSettings } from './draft-defaults'
@@ -400,7 +401,7 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
               ))}
             </NativeSelect>
             <span className='text-muted-foreground shrink-0 text-xs'>
-              {t('Balance')}: {props.balance}
+              {t('Balance')}: {formatQuota(props.balance)}
             </span>
             <Button disabled={disabled} onClick={props.onSubmit}>
               <HugeiconsIcon icon={SentIcon} strokeWidth={2} />

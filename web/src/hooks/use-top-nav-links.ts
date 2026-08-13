@@ -67,17 +67,6 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Home'), href: '/' })
   }
 
-  // Console -> /dashboard (new console path)
-  if (modules?.console !== false) {
-    links.push({ title: t('Console'), href: '/dashboard' })
-  }
-
-  links.push({
-    title: t('Workspace'),
-    href: '/workspace',
-    requiresAuth: !isAuthed,
-  })
-
   // Pricing
   const pricing = modules?.pricing
   if (pricing && typeof pricing === 'object' && pricing.enabled) {
@@ -94,6 +83,17 @@ export function useTopNavLinks(): TopNavLink[] {
 
   if (modules?.creativeShowcase !== false) {
     links.push({ title: t('Creative'), href: '/creative-showcase' })
+  }
+
+  links.push({
+    title: t('Workspace'),
+    href: '/workspace',
+    requiresAuth: !isAuthed,
+  })
+
+  // Console -> /dashboard (new console path)
+  if (modules?.console !== false) {
+    links.push({ title: t('Console'), href: '/dashboard' })
   }
 
   // Docs (supports external links)
