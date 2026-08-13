@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	workspaceData "github.com/QuantumNous/new-api/custom/workspace"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -36,6 +37,7 @@ type GlobalSettings struct {
 	PassThroughRequestEnabled        bool                             `json:"pass_through_request_enabled"`
 	ThinkingModelBlacklist           []string                         `json:"thinking_model_blacklist"`
 	ChatCompletionsToResponsesPolicy ChatCompletionsToResponsesPolicy `json:"chat_completions_to_responses_policy"`
+	WorkspaceModelMediaRules         []workspaceData.ModelMediaRule   `json:"workspace_model_media_rules"`
 }
 
 // 默认配置
@@ -49,6 +51,7 @@ var defaultOpenaiSettings = GlobalSettings{
 		Enabled:     false,
 		AllChannels: true,
 	},
+	WorkspaceModelMediaRules: []workspaceData.ModelMediaRule{},
 }
 
 // 全局实例

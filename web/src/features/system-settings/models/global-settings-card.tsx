@@ -76,6 +76,16 @@ const chatToResponsesPolicyAllChannelsExample = JSON.stringify(
   2
 )
 
+const workspaceMediaRulesExample = JSON.stringify(
+  [
+    { type: 'video', pattern: '(^|/)wan2\\.7$' },
+    { type: 'unknown', pattern: '(^|/)internal-test-' },
+    { type: 'text', pattern: '(^|/)company-chat-' },
+  ],
+  null,
+  2
+)
+
 const jsonString = z.string().refine((value) => {
   const trimmed = value.trim()
   if (!trimmed) return true
@@ -87,11 +97,32 @@ const jsonString = z.string().refine((value) => {
   }
 }, 'Invalid JSON format')
 
+const workspaceMediaRulesString = z.string().refine((value) => {
+  const trimmed = value.trim()
+  if (!trimmed) return true
+  try {
+    const rules = JSON.parse(trimmed)
+    return z
+      .array(
+        z
+          .object({
+            type: z.enum(['text', 'image', 'video', 'unknown']),
+            pattern: z.string().trim().min(1),
+          })
+          .strict()
+      )
+      .safeParse(rules).success
+  } catch {
+    return false
+  }
+}, 'Invalid workspace model media rules')
+
 const schema = z.object({
   global: z.object({
     pass_through_request_enabled: z.boolean(),
     thinking_model_blacklist: jsonString,
     chat_completions_to_responses_policy: jsonString,
+    workspace_model_media_rules: workspaceMediaRulesString,
   }),
   general_setting: z.object({
     ping_interval_enabled: z.boolean(),
@@ -106,6 +137,7 @@ type FlatGlobalModelSettings = {
   'global.pass_through_request_enabled': boolean
   'global.thinking_model_blacklist': string
   'global.chat_completions_to_responses_policy': string
+  'global.workspace_model_media_rules': string
   'general_setting.ping_interval_enabled': boolean
   'general_setting.ping_interval_seconds': number
 }
@@ -122,6 +154,10 @@ const flattenGlobalValues = (
   'global.chat_completions_to_responses_policy': normalizeJsonText(
     values.global.chat_completions_to_responses_policy,
     '{}'
+  ),
+  'global.workspace_model_media_rules': normalizeJsonText(
+    values.global.workspace_model_media_rules,
+    '[]'
   ),
   'general_setting.ping_interval_enabled':
     values.general_setting.ping_interval_enabled,
@@ -237,6 +273,65 @@ export function GlobalSettingsCard({ defaultValues }: GlobalSettingsCardProps) {
               </FormItem>
             )}
           />
+
+          <Separator />
+
+          <div className='space-y-4'>
+            <h3 className='text-base font-semibold'>
+              {t('Workspace model media classification')}
+            </h3>
+
+            <Alert>
+              <AlertTitle>{t('Rule behavior')}</AlertTitle>
+              <AlertDescription>
+                {t(
+                  'Rules are matched in order before built-in detection. Model names are trimmed and converted to lowercase before matching.'
+                )}
+              </AlertDescription>
+            </Alert>
+
+            <FormField
+              control={form.control}
+              name='global.workspace_model_media_rules'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Workspace media rules JSON')}</FormLabel>
+                  <FormControl>
+                    <JsonCodeEditor
+                      value={field.value}
+                      onChange={(value) => field.onChange(value)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      textareaRef={field.ref}
+                      placeholder={`${t('Example:')}\n${workspaceMediaRulesExample}`}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Use Go RE2 patterns and one of text, image, video, or unknown. Classifying an image or video model does not add its generation capability settings.'
+                    )}
+                  </FormDescription>
+                  <div>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={() =>
+                        form.setValue(
+                          'global.workspace_model_media_rules',
+                          workspaceMediaRulesExample,
+                          { shouldDirty: true }
+                        )
+                      }
+                    >
+                      {t('Fill media rule example')}
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <Separator />
 

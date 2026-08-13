@@ -29,6 +29,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -92,14 +93,19 @@ func GetWorkspaceCapabilities(c *gin.Context) {
 		workspaceFailure(c, http.StatusInternalServerError, err)
 		return
 	}
+	classifier, err := workspaceData.NewModelMediaClassifier(model_setting.GetGlobalSettings().WorkspaceModelMediaRules)
+	if err != nil {
+		workspaceFailure(c, http.StatusInternalServerError, err)
+		return
+	}
 	availableModels := make([]string, 0, len(modelGroups))
 	for name := range modelGroups {
 		availableModels = append(availableModels, name)
 	}
 	sort.Strings(availableModels)
 	pricingVendors := workspacePricingVendorNames(model.GetPricing(), model.GetVendors())
-	imageModels := filterWorkspaceCapabilities(workspaceData.ImageCapabilities, modelGroups, constant.EndpointTypeImageGeneration)
-	videoModels := filterWorkspaceCapabilities(workspaceData.VideoCapabilities, modelGroups)
+	imageModels := filterWorkspaceCapabilities(workspaceData.ImageCapabilities, modelGroups, classifier, workspaceData.ModelMediaImage, constant.EndpointTypeImageGeneration)
+	videoModels := filterWorkspaceCapabilities(workspaceData.VideoCapabilities, modelGroups, classifier, workspaceData.ModelMediaVideo)
 	for i := range imageModels {
 		imageModels[i].Vendor = pricingVendors[imageModels[i].Model]
 		if imageModels[i].Vendor == "" {
@@ -112,16 +118,9 @@ func GetWorkspaceCapabilities(c *gin.Context) {
 			videoModels[i].Vendor = "Custom"
 		}
 	}
-	reserved := make(map[string]bool, len(imageModels)+len(videoModels))
-	for _, capability := range workspaceData.ImageCapabilities {
-		reserved[capability.Model] = true
-	}
-	for _, capability := range workspaceData.VideoCapabilities {
-		reserved[capability.Model] = true
-	}
 	textModels := make([]workspaceTextModelCapability, 0, len(availableModels))
 	for _, name := range availableModels {
-		if !reserved[name] && slices.Contains(model.GetModelSupportEndpointTypes(name), constant.EndpointTypeOpenAI) {
+		if classifier.Classify(name) == workspaceData.ModelMediaText && slices.Contains(model.GetModelSupportEndpointTypes(name), constant.EndpointTypeOpenAI) {
 			vendor := pricingVendors[name]
 			if vendor == "" {
 				vendor = "Custom"
@@ -888,11 +887,14 @@ func (writer *workspaceCaptureWriter) flush(c *gin.Context) {
 	_, _ = writer.ResponseWriter.Write(writer.body.Bytes())
 }
 
-func filterWorkspaceCapabilities(items []workspaceData.ModelCapability, modelGroups map[string][]string, requiredEndpoint ...constant.EndpointType) []workspaceData.ModelCapability {
+func filterWorkspaceCapabilities(items []workspaceData.ModelCapability, modelGroups map[string][]string, classifier *workspaceData.ModelMediaClassifier, mediaType workspaceData.ModelMediaType, requiredEndpoint ...constant.EndpointType) []workspaceData.ModelCapability {
 	filtered := make([]workspaceData.ModelCapability, 0, len(items))
 	for _, item := range items {
 		groups := modelGroups[item.Model]
 		if len(groups) == 0 {
+			continue
+		}
+		if classifier.Classify(item.Model) != mediaType {
 			continue
 		}
 		if len(requiredEndpoint) > 0 && !slices.Contains(model.GetModelSupportEndpointTypes(item.Model), requiredEndpoint[0]) {

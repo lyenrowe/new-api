@@ -15,3 +15,14 @@ func TestValidateOptionValueRejectsInvalidMaxTokenAutoGroups(t *testing.T) {
 	}
 	require.NoError(t, validateOptionValue("MaxTokenAutoGroups", "999999"))
 }
+
+func TestValidateOptionValueChecksWorkspaceModelMediaRules(t *testing.T) {
+	require.NoError(t, validateOptionValue(
+		"global.workspace_model_media_rules",
+		`[{"type":"video","pattern":"(^|/)custom-video"}]`,
+	))
+	assert.Error(t, validateOptionValue(
+		"global.workspace_model_media_rules",
+		`[{"type":"audio","pattern":"audio"}]`,
+	))
+}

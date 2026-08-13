@@ -184,3 +184,23 @@ func TestWorkspacePricingVendorNamesMatchesPricingCatalogAssociations(t *testing
 		"catalog-model": "Catalog Vendor",
 	}, workspacePricingVendorNames(pricing, vendors))
 }
+
+func TestFilterWorkspaceCapabilitiesRequiresMatchingMediaTypeAndGroup(t *testing.T) {
+	classifier, err := workspaceData.NewModelMediaClassifier(nil)
+	require.NoError(t, err)
+	items := []workspaceData.ModelCapability{
+		{Model: "kling-v3", Type: workspaceData.KindVideo},
+		{Model: "sora-2", Type: workspaceData.KindVideo},
+		{Model: "gpt-image-2", Type: workspaceData.KindImage},
+	}
+	modelGroups := map[string][]string{
+		"kling-v3":    {"default"},
+		"gpt-image-2": {"default"},
+	}
+
+	filtered := filterWorkspaceCapabilities(items, modelGroups, classifier, workspaceData.ModelMediaVideo)
+
+	require.Len(t, filtered, 1)
+	assert.Equal(t, "kling-v3", filtered[0].Model)
+	assert.Equal(t, []string{"default"}, filtered[0].Groups)
+}
