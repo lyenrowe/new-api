@@ -7,6 +7,7 @@ published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { useCallback } from 'react'
 import { z } from 'zod'
 
 import { WorkspacePage } from '@/features/workspace'
@@ -15,6 +16,7 @@ import { useAuthStore } from '@/stores/auth-store'
 const workspaceSearchSchema = z.object({
   type: z.enum(['text', 'image', 'video']).optional(),
   caseId: z.coerce.number().int().positive().optional(),
+  conversationId: z.coerce.number().int().positive().optional(),
 })
 
 export const Route = createFileRoute('/workspace/')({
@@ -33,5 +35,23 @@ export const Route = createFileRoute('/workspace/')({
 
 function WorkspaceRoute() {
   const search = Route.useSearch()
-  return <WorkspacePage caseId={search.caseId} initialType={search.type} />
+  const navigate = Route.useNavigate()
+  const handleConversationChange = useCallback(
+    (conversationId: number, replace?: boolean) => {
+      void navigate({
+        replace,
+        search: { conversationId },
+      })
+    },
+    [navigate]
+  )
+
+  return (
+    <WorkspacePage
+      caseId={search.caseId}
+      conversationId={search.conversationId}
+      initialType={search.type}
+      onConversationChange={handleConversationChange}
+    />
+  )
 }

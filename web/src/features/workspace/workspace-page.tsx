@@ -73,6 +73,7 @@ import type {
 } from './types'
 import { WorkspaceComposer } from './workspace-composer'
 import { isWorkspaceComposerCompact } from './workspace-composer-state'
+import { resolveWorkspaceConversationAfterDelete } from './workspace-conversation-selection'
 import { resolveWorkspaceEntryType } from './workspace-entry'
 import { WorkspaceScrollLayout } from './workspace-scroll-layout'
 
@@ -86,18 +87,20 @@ const emptyDraft: WorkspaceDraftState = {
 
 export function WorkspacePage(props: {
   caseId?: number
+  conversationId?: number
   initialType?: WorkspaceType
+  onConversationChange: (conversationId: number, replace?: boolean) => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
-  const [selectedId, setSelectedId] = useState<number>()
   const [entryType, setEntryType] = useState(props.initialType)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [renameTarget, setRenameTarget] = useState<WorkspaceConversation>()
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceConversation>()
   const [renameValue, setRenameValue] = useState('')
   const clearEntryType = useCallback(() => setEntryType(undefined), [])
+  const onConversationChange = props.onConversationChange
   const initialized = useRef(false)
   const initialParams = useRef({
     caseId: props.caseId,
@@ -110,7 +113,7 @@ export function WorkspacePage(props: {
   const createConversation = useMutation({
     mutationFn: createWorkspaceConversation,
     onSuccess: async (conversation) => {
-      setSelectedId(conversation.id)
+      props.onConversationChange(conversation.id)
       await queryClient.invalidateQueries({
         queryKey: ['workspace', 'conversations'],
       })
@@ -120,11 +123,12 @@ export function WorkspacePage(props: {
   useEffect(() => {
     if (initialized.current || !conversations.data) return
     initialized.current = true
+    if (props.conversationId) return
     const caseId = initialParams.current.caseId
     if (caseId) {
       void createWorkspacePreset(caseId)
         .then(async (preset) => {
-          setSelectedId(preset.conversation.id)
+          onConversationChange(preset.conversation.id, true)
           await queryClient.invalidateQueries({
             queryKey: ['workspace', 'conversations'],
           })
@@ -137,21 +141,28 @@ export function WorkspacePage(props: {
     }
     const first = conversations.data.items[0]
     if (first) {
-      setSelectedId(first.id)
+      onConversationChange(first.id, true)
       return
     }
     createConversation.mutate(initialParams.current.type || 'text')
-  }, [conversations.data, createConversation, queryClient, t])
+  }, [
+    conversations.data,
+    createConversation,
+    props.conversationId,
+    onConversationChange,
+    queryClient,
+    t,
+  ])
 
   const selectConversation = (id: number) => {
-    setSelectedId(id)
+    props.onConversationChange(id)
     setMobileOpen(false)
   }
   const sidebar = (
     <ConversationSidebar
       conversations={conversations.data?.items || []}
       search={search}
-      selectedId={selectedId}
+      selectedId={props.conversationId}
       onCreate={() =>
         createConversation.mutate(initialParams.current.type || 'text')
       }
@@ -190,11 +201,11 @@ export function WorkspacePage(props: {
           >
             <HugeiconsIcon icon={Menu01Icon} strokeWidth={2} />
           </Button>
-          {selectedId ? (
+          {props.conversationId ? (
             <WorkspaceSession
               initialType={entryType}
-              key={selectedId}
-              conversationId={selectedId}
+              key={props.conversationId}
+              conversationId={props.conversationId}
               onInitialTypeApplied={clearEntryType}
             />
           ) : (
@@ -267,16 +278,26 @@ export function WorkspacePage(props: {
               variant='destructive'
               onClick={() => {
                 if (!deleteTarget) return
+                const deletedId = deleteTarget.id
                 void deleteWorkspaceConversation(deleteTarget.id).then(
                   async () => {
-                    if (selectedId === deleteTarget.id) {
-                      setSelectedId(undefined)
-                    }
+                    const nextId = resolveWorkspaceConversationAfterDelete(
+                      conversations.data?.items || [],
+                      props.conversationId,
+                      deletedId
+                    )
                     setDeleteTarget(undefined)
-                    initialized.current = false
                     await queryClient.invalidateQueries({
                       queryKey: ['workspace', 'conversations'],
                     })
+                    if (nextId === props.conversationId) return
+                    if (nextId) {
+                      props.onConversationChange(nextId, true)
+                      return
+                    }
+                    createConversation.mutate(
+                      initialParams.current.type || 'text'
+                    )
                   }
                 )
               }}
