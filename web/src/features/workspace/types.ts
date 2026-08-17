@@ -14,7 +14,7 @@ export type WorkspaceRoundStatus =
   | 'failed'
 
 export type WorkspaceConversation = {
-  id: number
+  id: string
   title: string
   active_type: WorkspaceType
   created_at: string
@@ -23,7 +23,7 @@ export type WorkspaceConversation = {
 
 export type WorkspaceDraft = {
   id: number
-  conversation_id: number
+  conversation_id: string
   type: WorkspaceType
   model: string
   group: string
@@ -35,7 +35,7 @@ export type WorkspaceDraft = {
 
 export type WorkspaceRound = {
   id: number
-  conversation_id: number
+  conversation_id: string
   type: WorkspaceType
   model: string
   group: string

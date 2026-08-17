@@ -49,7 +49,7 @@ export async function createWorkspaceConversation(type: WorkspaceType) {
   return response.data.data
 }
 
-export async function getWorkspaceConversation(id: number) {
+export async function getWorkspaceConversation(id: string) {
   const response = await api.get<ApiResponse<WorkspaceConversationDetail>>(
     `/api/workspace/conversations/${id}`
   )
@@ -57,13 +57,13 @@ export async function getWorkspaceConversation(id: number) {
 }
 
 export async function updateWorkspaceConversation(
-  id: number,
+  id: string,
   input: { title?: string; active_type?: WorkspaceType }
 ) {
   await api.patch(`/api/workspace/conversations/${id}`, input)
 }
 
-export async function deleteWorkspaceConversation(id: number) {
+export async function deleteWorkspaceConversation(id: string) {
   await api.delete(`/api/workspace/conversations/${id}`)
 }
 
@@ -85,7 +85,7 @@ export async function getWorkspaceGroups() {
 }
 
 export async function saveWorkspaceDraft(
-  conversationId: number,
+  conversationId: string,
   type: WorkspaceType,
   draft: WorkspaceDraftState
 ) {
@@ -103,7 +103,7 @@ export async function saveWorkspaceDraft(
 }
 
 export async function createWorkspaceRound(
-  conversationId: number,
+  conversationId: string,
   type: WorkspaceType,
   draft: WorkspaceDraftState
 ) {

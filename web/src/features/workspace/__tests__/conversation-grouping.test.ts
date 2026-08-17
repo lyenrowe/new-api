@@ -14,7 +14,7 @@ import dayjs from 'dayjs'
 import type { WorkspaceConversation } from '../types'
 import { groupWorkspaceConversations } from '../workspace-groups'
 
-function conversation(id: number, updatedAt: string): WorkspaceConversation {
+function conversation(id: string, updatedAt: string): WorkspaceConversation {
   return {
     id,
     title: `Conversation ${id}`,
@@ -29,10 +29,10 @@ describe('workspace conversation grouping', () => {
     const now = dayjs('2026-08-06T12:00:00Z')
     const groups = groupWorkspaceConversations(
       [
-        conversation(1, '2026-08-06T08:00:00Z'),
-        conversation(2, '2026-08-05T08:00:00Z'),
-        conversation(3, '2026-08-02T08:00:00Z'),
-        conversation(4, '2026-07-20T08:00:00Z'),
+        conversation('conversation-1', '2026-08-06T08:00:00Z'),
+        conversation('conversation-2', '2026-08-05T08:00:00Z'),
+        conversation('conversation-3', '2026-08-02T08:00:00Z'),
+        conversation('conversation-4', '2026-07-20T08:00:00Z'),
       ],
       now
     )
@@ -43,7 +43,7 @@ describe('workspace conversation grouping', () => {
     )
     assert.deepEqual(
       groups.map((group) => group.conversations[0].id),
-      [1, 2, 3, 4]
+      ['conversation-1', 'conversation-2', 'conversation-3', 'conversation-4']
     )
   })
 })

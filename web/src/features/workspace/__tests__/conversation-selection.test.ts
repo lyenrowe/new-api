@@ -12,7 +12,11 @@ import { describe, test } from 'node:test'
 import type { WorkspaceConversation } from '../types'
 import { resolveWorkspaceConversationAfterDelete } from '../workspace-conversation-selection'
 
-const conversations = [1, 2, 3].map(
+const conversations = [
+  'conversation-1',
+  'conversation-2',
+  'conversation-3',
+].map(
   (id): WorkspaceConversation => ({
     id,
     title: `Conversation ${id}`,
@@ -25,21 +29,33 @@ const conversations = [1, 2, 3].map(
 describe('workspace conversation selection after deletion', () => {
   test('keeps the current conversation when deleting another history item', () => {
     assert.equal(
-      resolveWorkspaceConversationAfterDelete(conversations, 1, 2),
-      1
+      resolveWorkspaceConversationAfterDelete(
+        conversations,
+        'conversation-1',
+        'conversation-2'
+      ),
+      'conversation-1'
     )
   })
 
   test('selects a remaining conversation when deleting the current item', () => {
     assert.equal(
-      resolveWorkspaceConversationAfterDelete(conversations, 1, 1),
-      2
+      resolveWorkspaceConversationAfterDelete(
+        conversations,
+        'conversation-1',
+        'conversation-1'
+      ),
+      'conversation-2'
     )
   })
 
   test('returns no selection when deleting the only conversation', () => {
     assert.equal(
-      resolveWorkspaceConversationAfterDelete([conversations[0]], 1, 1),
+      resolveWorkspaceConversationAfterDelete(
+        [conversations[0]],
+        'conversation-1',
+        'conversation-1'
+      ),
       undefined
     )
   })

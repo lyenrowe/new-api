@@ -25,6 +25,29 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestWorkspaceConversationIDRejectsSequentialNumericID(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Params = gin.Params{{Key: "id", Value: "1"}}
+
+	id, ok := workspaceConversationID(context)
+
+	assert.False(t, ok)
+	assert.Empty(t, id)
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestWorkspaceConversationIDAcceptsUUID(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Params = gin.Params{{Key: "id", Value: "7A7D8D8D-C9A0-4C2D-BFD4-FDB4F6C415D8"}}
+
+	id, ok := workspaceConversationID(context)
+
+	assert.True(t, ok)
+	assert.Equal(t, "7a7d8d8d-c9a0-4c2d-bfd4-fdb4f6c415d8", id)
+}
+
 func TestWorkspaceCanonicalPayloadKeepsImageCountAndKlingFalseAudio(t *testing.T) {
 	imageRound := &workspaceData.Round{ID: 1, UserID: 10, Type: workspaceData.KindImage, Model: "gpt-image-2", Prompt: "poster"}
 	imagePayload, imagePath, err := canonicalWorkspacePayload(nil, imageRound, nil, map[string]any{

@@ -87,9 +87,9 @@ const emptyDraft: WorkspaceDraftState = {
 
 export function WorkspacePage(props: {
   caseId?: number
-  conversationId?: number
+  conversationId?: string
   initialType?: WorkspaceType
-  onConversationChange: (conversationId: number, replace?: boolean) => void
+  onConversationChange: (conversationId: string, replace?: boolean) => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -154,7 +154,7 @@ export function WorkspacePage(props: {
     t,
   ])
 
-  const selectConversation = (id: number) => {
+  const selectConversation = (id: string) => {
     props.onConversationChange(id)
     setMobileOpen(false)
   }
@@ -312,7 +312,7 @@ export function WorkspacePage(props: {
 }
 
 function WorkspaceSession(props: {
-  conversationId: number
+  conversationId: string
   initialType?: WorkspaceType
   onInitialTypeApplied: () => void
 }) {

@@ -25,11 +25,11 @@ import { groupWorkspaceConversations } from './workspace-groups'
 
 type ConversationSidebarProps = {
   conversations: WorkspaceConversation[]
-  selectedId?: number
+  selectedId?: string
   search: string
   onSearchChange: (value: string) => void
   onCreate: () => void
-  onSelect: (id: number) => void
+  onSelect: (id: string) => void
   onRename: (conversation: WorkspaceConversation) => void
   onDelete: (conversation: WorkspaceConversation) => void
 }

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +34,8 @@ const (
 var ErrNotFound = errors.New("workspace record not found")
 
 type Conversation struct {
-	ID         int64     `json:"id" gorm:"primaryKey"`
+	ID         int64     `json:"-" gorm:"primaryKey"`
+	PublicID   string    `json:"id" gorm:"column:public_id;size:36"`
 	UserID     int       `json:"-" gorm:"index;not null"`
 	Title      string    `json:"title" gorm:"size:200;not null"`
 	ActiveType string    `json:"active_type" gorm:"size:16;not null"`
@@ -41,38 +43,47 @@ type Conversation struct {
 	UpdatedAt  time.Time `json:"updated_at" gorm:"index"`
 }
 
+func (conversation *Conversation) BeforeCreate(_ *gorm.DB) error {
+	if conversation.PublicID == "" {
+		conversation.PublicID = uuid.NewString()
+	}
+	return nil
+}
+
 type Draft struct {
-	ID             int64     `json:"id" gorm:"primaryKey"`
-	ConversationID int64     `json:"conversation_id" gorm:"uniqueIndex:idx_workspace_draft;not null"`
-	Type           string    `json:"type" gorm:"size:16;uniqueIndex:idx_workspace_draft;not null"`
-	Model          string    `json:"model" gorm:"size:160"`
-	Group          string    `json:"group" gorm:"size:120"`
-	Prompt         string    `json:"prompt" gorm:"type:text"`
-	Settings       string    `json:"settings" gorm:"type:text"`
-	AssetIDs       string    `json:"asset_ids" gorm:"type:text"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                   int64     `json:"id" gorm:"primaryKey"`
+	ConversationID       int64     `json:"-" gorm:"uniqueIndex:idx_workspace_draft;not null"`
+	ConversationPublicID string    `json:"conversation_id" gorm:"-"`
+	Type                 string    `json:"type" gorm:"size:16;uniqueIndex:idx_workspace_draft;not null"`
+	Model                string    `json:"model" gorm:"size:160"`
+	Group                string    `json:"group" gorm:"size:120"`
+	Prompt               string    `json:"prompt" gorm:"type:text"`
+	Settings             string    `json:"settings" gorm:"type:text"`
+	AssetIDs             string    `json:"asset_ids" gorm:"type:text"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type Round struct {
-	ID             int64     `json:"id" gorm:"primaryKey"`
-	ConversationID int64     `json:"conversation_id" gorm:"index;not null"`
-	UserID         int       `json:"-" gorm:"index;not null"`
-	Type           string    `json:"type" gorm:"size:16;index;not null"`
-	Model          string    `json:"model" gorm:"size:160;not null"`
-	Group          string    `json:"group" gorm:"size:120"`
-	Prompt         string    `json:"prompt" gorm:"type:text;not null"`
-	Settings       string    `json:"settings" gorm:"type:text"`
-	AssetIDs       string    `json:"asset_ids" gorm:"type:text"`
-	Status         string    `json:"status" gorm:"size:24;index;not null"`
-	Error          string    `json:"error,omitempty" gorm:"type:text"`
-	TextResult     string    `json:"text_result,omitempty" gorm:"type:text"`
-	TaskID         string    `json:"task_id,omitempty" gorm:"size:191;index"`
-	Output         string    `json:"output,omitempty" gorm:"type:text"`
-	TokenCount     *int      `json:"token_count,omitempty"`
-	Quota          *int      `json:"quota,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                   int64     `json:"id" gorm:"primaryKey"`
+	ConversationID       int64     `json:"-" gorm:"index;not null"`
+	ConversationPublicID string    `json:"conversation_id" gorm:"-"`
+	UserID               int       `json:"-" gorm:"index;not null"`
+	Type                 string    `json:"type" gorm:"size:16;index;not null"`
+	Model                string    `json:"model" gorm:"size:160;not null"`
+	Group                string    `json:"group" gorm:"size:120"`
+	Prompt               string    `json:"prompt" gorm:"type:text;not null"`
+	Settings             string    `json:"settings" gorm:"type:text"`
+	AssetIDs             string    `json:"asset_ids" gorm:"type:text"`
+	Status               string    `json:"status" gorm:"size:24;index;not null"`
+	Error                string    `json:"error,omitempty" gorm:"type:text"`
+	TextResult           string    `json:"text_result,omitempty" gorm:"type:text"`
+	TaskID               string    `json:"task_id,omitempty" gorm:"size:191;index"`
+	Output               string    `json:"output,omitempty" gorm:"type:text"`
+	TokenCount           *int      `json:"token_count,omitempty"`
+	Quota                *int      `json:"quota,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type Asset struct {
@@ -114,7 +125,25 @@ type RoundInput struct {
 }
 
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Conversation{}, &Draft{}, &Round{}, &Asset{})
+	if err := db.AutoMigrate(&Conversation{}, &Draft{}, &Round{}, &Asset{}); err != nil {
+		return err
+	}
+
+	var conversations []Conversation
+	if err := db.Where("public_id IS NULL OR public_id = ?", "").Find(&conversations).Error; err != nil {
+		return err
+	}
+	for _, conversation := range conversations {
+		if err := db.Model(&Conversation{}).Where("id = ?", conversation.ID).Update("public_id", uuid.NewString()).Error; err != nil {
+			return err
+		}
+	}
+
+	const publicIDIndex = "idx_workspace_conversations_public_id"
+	if !db.Migrator().HasIndex(&Conversation{}, publicIDIndex) {
+		return db.Exec("CREATE UNIQUE INDEX " + publicIDIndex + " ON conversations (public_id)").Error
+	}
+	return nil
 }
 
 func IsKind(value string) bool {
@@ -125,7 +154,7 @@ func CreateConversation(db *gorm.DB, userID int, activeType string) (*Conversati
 	if !IsKind(activeType) {
 		activeType = KindText
 	}
-	conversation := &Conversation{UserID: userID, Title: "New conversation", ActiveType: activeType}
+	conversation := &Conversation{PublicID: uuid.NewString(), UserID: userID, Title: "New conversation", ActiveType: activeType}
 	if err := db.Create(conversation).Error; err != nil {
 		return nil, err
 	}
@@ -146,7 +175,18 @@ func ListConversations(db *gorm.DB, userID int, query string, limit, offset int)
 	return conversations, total, err
 }
 
-func GetConversation(db *gorm.DB, userID int, id int64) (*ConversationDetail, error) {
+func GetConversation(db *gorm.DB, userID int, publicID string) (*ConversationDetail, error) {
+	var conversation Conversation
+	if err := db.Where("public_id = ? AND user_id = ?", publicID, userID).First(&conversation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return getConversationDetail(db, userID, conversation)
+}
+
+func GetConversationByID(db *gorm.DB, userID int, id int64) (*ConversationDetail, error) {
 	var conversation Conversation
 	if err := db.Where("id = ? AND user_id = ?", id, userID).First(&conversation).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -154,19 +194,37 @@ func GetConversation(db *gorm.DB, userID int, id int64) (*ConversationDetail, er
 		}
 		return nil, err
 	}
+	return getConversationDetail(db, userID, conversation)
+}
+
+func getConversationDetail(db *gorm.DB, userID int, conversation Conversation) (*ConversationDetail, error) {
 	var drafts []Draft
-	if err := db.Where("conversation_id = ?", id).Order("id asc").Find(&drafts).Error; err != nil {
+	if err := db.Where("conversation_id = ?", conversation.ID).Order("id asc").Find(&drafts).Error; err != nil {
 		return nil, err
 	}
 	var rounds []Round
-	if err := db.Where("conversation_id = ? AND user_id = ?", id, userID).Order("id desc").Limit(100).Find(&rounds).Error; err != nil {
+	if err := db.Where("conversation_id = ? AND user_id = ?", conversation.ID, userID).Order("id desc").Limit(100).Find(&rounds).Error; err != nil {
 		return nil, err
 	}
 	slices.Reverse(rounds)
+	for index := range drafts {
+		drafts[index].ConversationPublicID = conversation.PublicID
+	}
+	for index := range rounds {
+		rounds[index].ConversationPublicID = conversation.PublicID
+	}
 	return &ConversationDetail{Conversation: conversation, Drafts: drafts, Rounds: rounds}, nil
 }
 
-func UpdateConversation(db *gorm.DB, userID int, id int64, title, activeType string) error {
+func UpdateConversation(db *gorm.DB, userID int, publicID, title, activeType string) error {
+	return updateConversation(db, userID, "public_id", publicID, title, activeType)
+}
+
+func UpdateConversationByID(db *gorm.DB, userID int, id int64, title, activeType string) error {
+	return updateConversation(db, userID, "id", id, title, activeType)
+}
+
+func updateConversation(db *gorm.DB, userID int, idColumn string, id any, title, activeType string) error {
 	updates := map[string]any{}
 	if value := strings.TrimSpace(title); value != "" {
 		runes := []rune(value)
@@ -181,7 +239,7 @@ func UpdateConversation(db *gorm.DB, userID int, id int64, title, activeType str
 	if len(updates) == 0 {
 		return nil
 	}
-	result := db.Model(&Conversation{}).Where("id = ? AND user_id = ?", id, userID).Updates(updates)
+	result := db.Model(&Conversation{}).Where(idColumn+" = ? AND user_id = ?", id, userID).Updates(updates)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -191,37 +249,43 @@ func UpdateConversation(db *gorm.DB, userID int, id int64, title, activeType str
 	return nil
 }
 
-func DeleteConversation(db *gorm.DB, userID int, id int64) error {
+func DeleteConversation(db *gorm.DB, userID int, publicID string) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		result := tx.Where("id = ? AND user_id = ?", id, userID).Delete(&Conversation{})
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected == 0 {
-			return ErrNotFound
-		}
-		if err := tx.Where("conversation_id = ?", id).Delete(&Draft{}).Error; err != nil {
+		var conversation Conversation
+		if err := tx.Where("public_id = ? AND user_id = ?", publicID, userID).First(&conversation).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
 			return err
 		}
-		return tx.Where("conversation_id = ? AND user_id = ?", id, userID).Delete(&Round{}).Error
+		if err := tx.Delete(&conversation).Error; err != nil {
+			return err
+		}
+		if conversation.ID == 0 {
+			return ErrNotFound
+		}
+		if err := tx.Where("conversation_id = ?", conversation.ID).Delete(&Draft{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("conversation_id = ? AND user_id = ?", conversation.ID, userID).Delete(&Round{}).Error
 	})
 }
 
-func UpsertDraft(db *gorm.DB, userID int, conversationID int64, kind string, input DraftInput) (*Draft, error) {
+func UpsertDraft(db *gorm.DB, userID int, conversationPublicID string, kind string, input DraftInput) (*Draft, error) {
 	if !IsKind(kind) {
 		return nil, errors.New("invalid workspace type")
 	}
-	var count int64
-	if err := db.Model(&Conversation{}).Where("id = ? AND user_id = ?", conversationID, userID).Count(&count).Error; err != nil {
+	var conversation Conversation
+	if err := db.Where("public_id = ? AND user_id = ?", conversationPublicID, userID).First(&conversation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
-	if count == 0 {
-		return nil, ErrNotFound
-	}
 	var draft Draft
-	err := db.Where("conversation_id = ? AND type = ?", conversationID, kind).First(&draft).Error
+	err := db.Where("conversation_id = ? AND type = ?", conversation.ID, kind).First(&draft).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		draft = Draft{ConversationID: conversationID, Type: kind}
+		draft = Draft{ConversationID: conversation.ID, Type: kind}
 	} else if err != nil {
 		return nil, err
 	}
@@ -233,26 +297,27 @@ func UpsertDraft(db *gorm.DB, userID int, conversationID int64, kind string, inp
 	if err := db.Save(&draft).Error; err != nil {
 		return nil, err
 	}
-	_ = db.Model(&Conversation{}).Where("id = ? AND user_id = ?", conversationID, userID).Updates(map[string]any{"active_type": kind, "updated_at": time.Now()}).Error
+	draft.ConversationPublicID = conversation.PublicID
+	_ = db.Model(&Conversation{}).Where("id = ? AND user_id = ?", conversation.ID, userID).Updates(map[string]any{"active_type": kind, "updated_at": time.Now()}).Error
 	return &draft, nil
 }
 
-func CreateRound(db *gorm.DB, userID int, conversationID int64, input RoundInput) (*Round, error) {
+func CreateRound(db *gorm.DB, userID int, conversationPublicID string, input RoundInput) (*Round, error) {
 	if !IsKind(input.Type) || strings.TrimSpace(input.Model) == "" || strings.TrimSpace(input.Prompt) == "" {
 		return nil, errors.New("type, model and prompt are required")
 	}
-	var count int64
-	if err := db.Model(&Conversation{}).Where("id = ? AND user_id = ?", conversationID, userID).Count(&count).Error; err != nil {
+	var conversation Conversation
+	if err := db.Where("public_id = ? AND user_id = ?", conversationPublicID, userID).First(&conversation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
-	if count == 0 {
-		return nil, ErrNotFound
-	}
-	round := &Round{ConversationID: conversationID, UserID: userID, Type: input.Type, Model: strings.TrimSpace(input.Model), Group: strings.TrimSpace(input.Group), Prompt: strings.TrimSpace(input.Prompt), Settings: input.Settings, AssetIDs: input.AssetIDs, Status: RoundQueued}
+	round := &Round{ConversationID: conversation.ID, ConversationPublicID: conversation.PublicID, UserID: userID, Type: input.Type, Model: strings.TrimSpace(input.Model), Group: strings.TrimSpace(input.Group), Prompt: strings.TrimSpace(input.Prompt), Settings: input.Settings, AssetIDs: input.AssetIDs, Status: RoundQueued}
 	if err := db.Create(round).Error; err != nil {
 		return nil, err
 	}
-	_ = db.Model(&Conversation{}).Where("id = ? AND user_id = ?", conversationID, userID).Updates(map[string]any{"active_type": input.Type, "updated_at": time.Now()}).Error
+	_ = db.Model(&Conversation{}).Where("id = ? AND user_id = ?", conversation.ID, userID).Updates(map[string]any{"active_type": input.Type, "updated_at": time.Now()}).Error
 	return round, nil
 }
 
@@ -264,6 +329,11 @@ func GetRound(db *gorm.DB, userID int, id int64) (*Round, error) {
 		}
 		return nil, err
 	}
+	var conversation Conversation
+	if err := db.Select("public_id").Where("id = ? AND user_id = ?", round.ConversationID, userID).First(&conversation).Error; err != nil {
+		return nil, err
+	}
+	round.ConversationPublicID = conversation.PublicID
 	return &round, nil
 }
 

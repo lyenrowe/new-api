@@ -16,10 +16,62 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/glebarez/sqlite"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+type legacyWorkspaceConversation struct {
+	ID         int64 `gorm:"primaryKey"`
+	UserID     int
+	Title      string
+	ActiveType string
+}
+
+func (legacyWorkspaceConversation) TableName() string {
+	return "conversations"
+}
+
+func TestConversationUsesOpaquePublicID(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, Migrate(db))
+
+	first, err := CreateConversation(db, 10, KindText)
+	require.NoError(t, err)
+	second, err := CreateConversation(db, 10, KindText)
+	require.NoError(t, err)
+	_, err = uuid.Parse(first.PublicID)
+	require.NoError(t, err)
+	_, err = uuid.Parse(second.PublicID)
+	require.NoError(t, err)
+	assert.NotEqual(t, first.PublicID, second.PublicID)
+
+	encoded, err := common.Marshal(first)
+	require.NoError(t, err)
+	var response map[string]any
+	require.NoError(t, common.Unmarshal(encoded, &response))
+	assert.Equal(t, first.PublicID, response["id"])
+	assert.NotContains(t, response, "public_id")
+}
+
+func TestMigrateBackfillsOpaqueIDsForExistingConversations(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&legacyWorkspaceConversation{}))
+	require.NoError(t, db.Create(&legacyWorkspaceConversation{UserID: 10, Title: "First", ActiveType: KindText}).Error)
+	require.NoError(t, db.Create(&legacyWorkspaceConversation{UserID: 10, Title: "Second", ActiveType: KindText}).Error)
+
+	require.NoError(t, Migrate(db))
+	var conversations []Conversation
+	require.NoError(t, db.Order("id asc").Find(&conversations).Error)
+	require.Len(t, conversations, 2)
+	assert.NotEmpty(t, conversations[0].PublicID)
+	assert.NotEmpty(t, conversations[1].PublicID)
+	assert.NotEqual(t, conversations[0].PublicID, conversations[1].PublicID)
+	assert.True(t, db.Migrator().HasIndex(&Conversation{}, "idx_workspace_conversations_public_id"))
+}
 
 func TestConversationDraftsStayIsolatedByContentTypeAndUser(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -28,18 +80,18 @@ func TestConversationDraftsStayIsolatedByContentTypeAndUser(t *testing.T) {
 
 	conversation, err := CreateConversation(db, 10, KindText)
 	require.NoError(t, err)
-	_, err = UpsertDraft(db, 10, conversation.ID, KindText, DraftInput{Model: "chat-model", Prompt: "hello"})
+	_, err = UpsertDraft(db, 10, conversation.PublicID, KindText, DraftInput{Model: "chat-model", Prompt: "hello"})
 	require.NoError(t, err)
-	_, err = UpsertDraft(db, 10, conversation.ID, KindImage, DraftInput{Model: "gpt-image-2", Prompt: "a lighthouse"})
+	_, err = UpsertDraft(db, 10, conversation.PublicID, KindImage, DraftInput{Model: "gpt-image-2", Prompt: "a lighthouse"})
 	require.NoError(t, err)
 
-	detail, err := GetConversation(db, 10, conversation.ID)
+	detail, err := GetConversation(db, 10, conversation.PublicID)
 	require.NoError(t, err)
 	require.Len(t, detail.Drafts, 2)
 	assert.Equal(t, KindText, detail.Drafts[0].Type)
 	assert.Equal(t, KindImage, detail.Drafts[1].Type)
 
-	_, err = GetConversation(db, 11, conversation.ID)
+	_, err = GetConversation(db, 11, conversation.PublicID)
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
@@ -66,7 +118,7 @@ func TestClaimRoundAllowsOnlyOneGeneration(t *testing.T) {
 	require.NoError(t, Migrate(db))
 	conversation, err := CreateConversation(db, 10, KindImage)
 	require.NoError(t, err)
-	round, err := CreateRound(db, 10, conversation.ID, RoundInput{
+	round, err := CreateRound(db, 10, conversation.PublicID, RoundInput{
 		Type: KindImage, Model: "gpt-image-2", Prompt: "a lighthouse",
 	})
 	require.NoError(t, err)

@@ -16,7 +16,7 @@ import { useAuthStore } from '@/stores/auth-store'
 const workspaceSearchSchema = z.object({
   type: z.enum(['text', 'image', 'video']).optional(),
   caseId: z.coerce.number().int().positive().optional(),
-  conversationId: z.coerce.number().int().positive().optional(),
+  conversationId: z.string().uuid().optional(),
 })
 
 export const Route = createFileRoute('/workspace/')({
@@ -37,7 +37,7 @@ function WorkspaceRoute() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const handleConversationChange = useCallback(
-    (conversationId: number, replace?: boolean) => {
+    (conversationId: string, replace?: boolean) => {
       void navigate({
         replace,
         search: { conversationId },

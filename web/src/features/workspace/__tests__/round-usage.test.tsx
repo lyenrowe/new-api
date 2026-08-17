@@ -61,7 +61,7 @@ describe('workspace round usage', () => {
             rounds={[
               {
                 id: 1,
-                conversation_id: 1,
+                conversation_id: '7a7d8d8d-c9a0-4c2d-bfd4-fdb4f6c415d8',
                 type: 'image',
                 model: 'gpt-image-2',
                 group: 'default',

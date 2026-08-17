@@ -10,8 +10,8 @@ import type { WorkspaceConversation } from './types'
 
 export function resolveWorkspaceConversationAfterDelete(
   conversations: WorkspaceConversation[],
-  selectedId: number | undefined,
-  deletedId: number
+  selectedId: string | undefined,
+  deletedId: string
 ) {
   if (selectedId !== deletedId) return selectedId
   return conversations.find((conversation) => conversation.id !== deletedId)?.id

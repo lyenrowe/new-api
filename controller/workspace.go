@@ -30,6 +30,7 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -171,7 +172,7 @@ func CreateWorkspaceConversation(c *gin.Context) {
 		return
 	}
 	if strings.TrimSpace(input.Title) != "" {
-		if err := workspaceData.UpdateConversation(model.DB, c.GetInt("id"), conversation.ID, input.Title, input.ActiveType); err != nil {
+		if err := workspaceData.UpdateConversation(model.DB, c.GetInt("id"), conversation.PublicID, input.Title, input.ActiveType); err != nil {
 			workspaceFailure(c, http.StatusInternalServerError, err)
 			return
 		}
@@ -181,7 +182,7 @@ func CreateWorkspaceConversation(c *gin.Context) {
 }
 
 func GetWorkspaceConversation(c *gin.Context) {
-	id, ok := workspaceID(c)
+	id, ok := workspaceConversationID(c)
 	if !ok {
 		return
 	}
@@ -200,7 +201,7 @@ func GetWorkspaceConversation(c *gin.Context) {
 }
 
 func UpdateWorkspaceConversation(c *gin.Context) {
-	id, ok := workspaceID(c)
+	id, ok := workspaceConversationID(c)
 	if !ok {
 		return
 	}
@@ -217,7 +218,7 @@ func UpdateWorkspaceConversation(c *gin.Context) {
 }
 
 func DeleteWorkspaceConversation(c *gin.Context) {
-	id, ok := workspaceID(c)
+	id, ok := workspaceConversationID(c)
 	if !ok {
 		return
 	}
@@ -229,7 +230,7 @@ func DeleteWorkspaceConversation(c *gin.Context) {
 }
 
 func SaveWorkspaceDraft(c *gin.Context) {
-	id, ok := workspaceID(c)
+	id, ok := workspaceConversationID(c)
 	if !ok {
 		return
 	}
@@ -247,7 +248,7 @@ func SaveWorkspaceDraft(c *gin.Context) {
 }
 
 func CreateWorkspaceRound(c *gin.Context) {
-	conversationID, ok := workspaceID(c)
+	conversationID, ok := workspaceConversationID(c)
 	if !ok {
 		return
 	}
@@ -427,7 +428,7 @@ func CreateWorkspacePreset(c *gin.Context) {
 		workspaceFailure(c, http.StatusInternalServerError, err)
 		return
 	}
-	_ = workspaceData.UpdateConversation(model.DB, c.GetInt("id"), conversation.ID, item.Title, item.Type)
+	_ = workspaceData.UpdateConversation(model.DB, c.GetInt("id"), conversation.PublicID, item.Title, item.Type)
 	settings := item.Settings
 	if settings == "" {
 		settingsBytes, marshalErr := common.Marshal(gin.H{"size": item.Size, "aspect_ratio": item.AspectRatio, "duration": item.Duration, "start_frame": item.StartFrame, "end_frame": item.EndFrame, "reference_urls": item.ReferenceURLs})
@@ -443,7 +444,7 @@ func CreateWorkspacePreset(c *gin.Context) {
 		workspaceFailure(c, http.StatusInternalServerError, err)
 		return
 	}
-	draft, err := workspaceData.UpsertDraft(model.DB, c.GetInt("id"), conversation.ID, item.Type, workspaceData.DraftInput{Model: item.Model, Group: item.Group, Prompt: item.Prompt, Settings: settings, AssetIDs: string(assetIDsJSON)})
+	draft, err := workspaceData.UpsertDraft(model.DB, c.GetInt("id"), conversation.PublicID, item.Type, workspaceData.DraftInput{Model: item.Model, Group: item.Group, Prompt: item.Prompt, Settings: settings, AssetIDs: string(assetIDsJSON)})
 	if err != nil {
 		workspaceFailure(c, http.StatusInternalServerError, err)
 		return
@@ -732,7 +733,7 @@ func canonicalWorkspacePayload(db *gorm.DB, round *workspaceData.Round, assets [
 	}
 	switch round.Type {
 	case workspaceData.KindText:
-		detail, err := workspaceData.GetConversation(db, round.UserID, round.ConversationID)
+		detail, err := workspaceData.GetConversationByID(db, round.UserID, round.ConversationID)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1085,7 +1086,7 @@ func autoNameWorkspaceConversation(conversationID int64, userID int, prompt stri
 	if len([]rune(title)) > 36 {
 		title = string([]rune(title)[:36])
 	}
-	_ = workspaceData.UpdateConversation(model.DB, userID, conversationID, title, "")
+	_ = workspaceData.UpdateConversationByID(model.DB, userID, conversationID, title, "")
 }
 
 func responseTaskID(data []byte) string {
@@ -1226,6 +1227,15 @@ func workspaceID(c *gin.Context) (int64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+func workspaceConversationID(c *gin.Context) (string, bool) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		workspaceFailure(c, http.StatusBadRequest, errors.New("invalid workspace conversation id"))
+		return "", false
+	}
+	return id.String(), true
 }
 
 func workspaceDataError(c *gin.Context, err error) {
