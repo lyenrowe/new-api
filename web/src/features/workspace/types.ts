@@ -47,6 +47,8 @@ export type WorkspaceRound = {
   text_result?: string
   task_id?: string
   output?: string
+  token_count?: number
+  quota?: number
   created_at: string
   updated_at: string
 }

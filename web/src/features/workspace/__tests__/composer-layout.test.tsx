@@ -169,12 +169,16 @@ const capabilities: import('../types').WorkspaceCapabilities = {
 function ComposerHarness(props: {
   assetTotal?: number
   compact?: boolean
+  controlInteraction?: boolean
   mode?: string
   model?: string
+  onExpand?: () => void
+  onInteractionChange?: (interacting: boolean) => void
   type?: WorkspaceType
 }) {
   const type = props.type || 'image'
   const model = props.model || 'gpt-image-2'
+  const [interacting, setInteracting] = useState(false)
   const [draft, setDraft] = useState<WorkspaceDraftState>({
     model,
     group: 'vip',
@@ -197,14 +201,22 @@ function ComposerHarness(props: {
       <WorkspaceComposer
         balance={1200}
         capabilities={capabilities}
-        compact={props.compact ?? false}
+        compact={
+          props.controlInteraction ? !interacting : (props.compact ?? false)
+        }
         draft={draft}
         groups={{ vip: { desc: 'VIP', ratio: 1 } }}
         submitting={false}
         type={type}
         onDraftChange={setDraft}
-        onExpand={() => {}}
-        onInteractionChange={() => {}}
+        onExpand={() => {
+          if (props.controlInteraction) setInteracting(true)
+          props.onExpand?.()
+        }}
+        onInteractionChange={(nextInteracting) => {
+          if (props.controlInteraction) setInteracting(nextInteracting)
+          props.onInteractionChange?.(nextInteracting)
+        }}
         onSubmit={() => {}}
         onTypeChange={() => {}}
         onUpload={() => {}}
@@ -360,6 +372,45 @@ describe('workspace composer layout', () => {
 
     await act(async () => rendered.root.unmount())
     rendered.container.remove()
+  })
+
+  test('expands on focus and ends the interaction after focus leaves', async () => {
+    const interactions: boolean[] = []
+    let expandCount = 0
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    await act(async () =>
+      root.render(
+        <ComposerHarness
+          controlInteraction
+          onExpand={() => {
+            expandCount += 1
+          }}
+          onInteractionChange={(interacting) => {
+            interactions.push(interacting)
+          }}
+        />
+      )
+    )
+    const prompt = container.querySelector<HTMLButtonElement>(
+      'button[type="button"].truncate'
+    )
+    assert.ok(prompt)
+
+    await act(async () => prompt.focus())
+    assert.equal(expandCount, 1)
+    assert.deepEqual(interactions, [true])
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea')
+    assert.ok(textarea)
+    assert.equal(document.activeElement, textarea)
+
+    await act(async () => textarea.blur())
+    assert.deepEqual(interactions, [true, false])
+    assert.equal(container.querySelector('textarea'), null)
+
+    await act(async () => root.unmount())
+    container.remove()
   })
 
   test('updates ratio and resolution through one accessible size popover', async () => {

@@ -69,6 +69,8 @@ type Round struct {
 	TextResult     string    `json:"text_result,omitempty" gorm:"type:text"`
 	TaskID         string    `json:"task_id,omitempty" gorm:"size:191;index"`
 	Output         string    `json:"output,omitempty" gorm:"type:text"`
+	TokenCount     *int      `json:"token_count,omitempty"`
+	Quota          *int      `json:"quota,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

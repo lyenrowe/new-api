@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
+import { formatLogQuota } from '@/lib/format'
 
 import type { WorkspaceRound } from './types'
 
@@ -56,11 +57,34 @@ export function RoundList(props: RoundListProps) {
               {round.prompt}
             </div>
             <div className='bg-card overflow-hidden rounded-2xl border shadow-sm'>
-              <div className='flex items-center justify-between border-b px-4 py-2'>
-                <span className='text-muted-foreground text-xs'>
-                  {round.model}
-                </span>
-                <RoundStatus status={round.status} />
+              <div className='flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2'>
+                <div className='flex items-center gap-2'>
+                  <span className='text-muted-foreground text-xs'>
+                    {round.model}
+                  </span>
+                  <RoundStatus status={round.status} />
+                </div>
+                {(round.status === 'succeeded' ||
+                  round.token_count !== undefined ||
+                  round.quota !== undefined) && (
+                  <div
+                    className='text-muted-foreground flex items-center gap-3 text-xs tabular-nums'
+                    data-workspace-round-usage='true'
+                  >
+                    <span>
+                      {t('Tokens')}:{' '}
+                      {round.token_count === undefined
+                        ? '-'
+                        : round.token_count.toLocaleString()}
+                    </span>
+                    <span>
+                      {t('Cost')}:{' '}
+                      {round.quota === undefined
+                        ? '-'
+                        : formatLogQuota(round.quota)}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className='p-4'>
                 {round.type === 'text' && text && <Markdown>{text}</Markdown>}

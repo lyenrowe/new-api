@@ -666,7 +666,14 @@ func GenerateWorkspaceRound(c *gin.Context) {
 			_ = workspaceData.UpdateRound(model.DB, userID, roundID, map[string]any{"status": workspaceData.RoundFailed, "error": message})
 			return
 		}
-		_ = workspaceData.UpdateRound(model.DB, userID, roundID, map[string]any{"status": workspaceData.RoundSucceeded, "text_result": result, "error": ""})
+		values := map[string]any{"status": workspaceData.RoundSucceeded, "text_result": result, "error": ""}
+		if tokenCount, exists := c.Get(string(constant.ContextKeyFinalUsageTokens)); exists {
+			values["token_count"] = tokenCount
+		}
+		if quota, exists := c.Get(string(constant.ContextKeyFinalQuota)); exists {
+			values["quota"] = quota
+		}
+		_ = workspaceData.UpdateRound(model.DB, userID, roundID, values)
 		autoNameWorkspaceConversation(round.ConversationID, userID, round.Prompt)
 		return
 	}
@@ -685,6 +692,12 @@ func GenerateWorkspaceRound(c *gin.Context) {
 	}
 	output := writer.body.String()
 	values := map[string]any{"output": output}
+	if tokenCount, exists := c.Get(string(constant.ContextKeyFinalUsageTokens)); exists {
+		values["token_count"] = tokenCount
+	}
+	if quota, exists := c.Get(string(constant.ContextKeyFinalQuota)); exists {
+		values["quota"] = quota
+	}
 	if envelope.Kind == workspaceData.KindImage {
 		archivedOutput, archiveErr := workspaceData.ArchiveImageResponse(model.DB, userID, writer.body.Bytes())
 		if archiveErr != nil {
@@ -1161,6 +1174,7 @@ func syncWorkspaceVideoRound(round *workspaceData.Round) {
 	values := map[string]any{}
 	switch task.Status {
 	case model.TaskStatusSuccess:
+		values["quota"] = task.Quota
 		resultURL := task.GetResultURL()
 		asset, archiveErr := workspaceData.ArchiveRemoteAsset(context.Background(), model.DB, round.UserID, workspaceData.KindVideo, resultURL, "generated-video")
 		if archiveErr != nil {
@@ -1182,6 +1196,7 @@ func syncWorkspaceVideoRound(round *workspaceData.Round) {
 		values["output"] = round.Output
 		autoNameWorkspaceConversation(round.ConversationID, round.UserID, round.Prompt)
 	case model.TaskStatusFailure:
+		values["quota"] = task.Quota
 		round.Status = workspaceData.RoundFailed
 		round.Error = task.FailReason
 		values["status"] = round.Status

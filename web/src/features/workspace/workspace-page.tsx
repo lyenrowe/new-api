@@ -72,7 +72,9 @@ import type {
   WorkspaceType,
 } from './types'
 import { WorkspaceComposer } from './workspace-composer'
+import { isWorkspaceComposerCompact } from './workspace-composer-state'
 import { resolveWorkspaceEntryType } from './workspace-entry'
+import { WorkspaceScrollLayout } from './workspace-scroll-layout'
 
 const emptyDraft: WorkspaceDraftState = {
   model: '',
@@ -334,15 +336,9 @@ function WorkspaceSession(props: {
   const [streamingRoundId, setStreamingRoundId] = useState<number>()
   const [streamingText, setStreamingText] = useState('')
   const [atLatest, setAtLatest] = useState(true)
-  const [composerExpanded, setComposerExpanded] = useState(false)
-  const [composerHeight, setComposerHeight] = useState(176)
+  const [composerInteracting, setComposerInteracting] = useState(false)
   const [missingKey, setMissingKey] = useState<WorkspaceAPIKeyRequirement>()
   const hydrated = useRef(false)
-  const initialScrollDone = useRef(false)
-  const scrollArea = useRef<HTMLDivElement>(null)
-  const composerArea = useRef<HTMLDivElement>(null)
-  const composerInteracting = useRef(false)
-  const lastScrollTop = useRef(0)
   const observedStatuses = useRef(new Map<number, string>())
   const requestedEntryType = props.initialType
   const notifyInitialTypeApplied = props.onInitialTypeApplied
@@ -468,33 +464,6 @@ function WorkspaceSession(props: {
     }
   }, [detail.data, t])
 
-  useEffect(() => {
-    const element = scrollArea.current
-    if (!element) return
-    if (!initialScrollDone.current) {
-      initialScrollDone.current = true
-      element.scrollTop = element.scrollHeight
-      return
-    }
-    if (atLatest) element.scrollTop = element.scrollHeight
-  }, [atLatest, detail.data?.rounds.length, streamingText])
-
-  useEffect(() => {
-    const element = composerArea.current
-    if (!element) return
-    const observer = new ResizeObserver((entries) => {
-      const height = Math.ceil(entries[0]?.contentRect.height || 0)
-      if (height > 0) setComposerHeight(height)
-    })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    const element = scrollArea.current
-    if (element && atLatest) element.scrollTop = element.scrollHeight
-  }, [atLatest, composerHeight])
-
   const updateDraft = (draft: WorkspaceDraftState) =>
     setDrafts((current) => ({ ...current, [activeType]: draft }))
 
@@ -619,99 +588,49 @@ function WorkspaceSession(props: {
   return (
     <>
       <div className='flex h-full min-h-0 flex-col'>
-        <header className='bg-background/95 flex h-14 shrink-0 items-center justify-between border-b px-4 pl-14 backdrop-blur md:pl-5'>
-          <h1 className='truncate font-medium'>
-            {detail.data.conversation.title}
-          </h1>
-          <span className='text-muted-foreground text-xs'>
-            {t('Workspace')}
-          </span>
-        </header>
-        <div className='relative min-h-0 flex-1 overflow-hidden'>
-          <div
-            ref={scrollArea}
-            className='h-full overflow-y-auto px-4'
-            onScroll={(event) => {
-              const element = event.currentTarget
-              const latest =
-                element.scrollHeight -
-                  element.scrollTop -
-                  element.clientHeight <
-                80
-              const scrollingUp = element.scrollTop < lastScrollTop.current - 8
-              lastScrollTop.current = element.scrollTop
-              setAtLatest(latest)
-              if (latest) {
-                setComposerExpanded(false)
-              } else if (scrollingUp && !composerInteracting.current) {
-                setComposerExpanded(false)
-              }
-            }}
-          >
-            <div
-              className='mx-auto max-w-5xl'
-              style={{ paddingBottom: composerHeight + 24 }}
-            >
-              <RoundList
-                rounds={detail.data.rounds}
-                streamingRoundId={streamingRoundId}
-                streamingText={streamingText}
-                onEdit={editRound}
-                onRetry={(round) =>
-                  void submit(round.type, draftFromRound(round, allAssets))
-                }
-              />
-            </div>
-          </div>
-          {!atLatest && (
-            <Button
-              className='absolute left-1/2 z-20 -translate-x-1/2 rounded-full shadow-md'
-              size='sm'
-              style={{ bottom: composerHeight + 24 }}
-              variant='secondary'
-              onClick={() =>
-                scrollArea.current?.scrollTo({
-                  top: scrollArea.current.scrollHeight,
-                  behavior: 'smooth',
+        <WorkspaceScrollLayout
+          onAtLatestChange={setAtLatest}
+          onScrollAwayFromComposer={() => setComposerInteracting(false)}
+          composer={
+            <WorkspaceComposer
+              balance={balance}
+              capabilities={capabilities.data}
+              compact={isWorkspaceComposerCompact(
+                atLatest,
+                composerInteracting
+              )}
+              pricing={pricing.data}
+              draft={drafts[activeType]}
+              groups={groups.data || {}}
+              submitting={submitting}
+              uploadProgress={uploadProgress}
+              type={activeType}
+              onDraftChange={updateDraft}
+              onExpand={() => setComposerInteracting(true)}
+              onInteractionChange={setComposerInteracting}
+              onSubmit={() => void submit()}
+              onTypeChange={(type) => {
+                setActiveType(type)
+                void updateWorkspaceConversation(props.conversationId, {
+                  active_type: type,
                 })
+              }}
+              onUpload={(kind, file) => void upload(kind, file)}
+            />
+          }
+        >
+          <div className='mx-auto max-w-5xl pt-14 md:pt-0'>
+            <RoundList
+              rounds={detail.data.rounds}
+              streamingRoundId={streamingRoundId}
+              streamingText={streamingText}
+              onEdit={editRound}
+              onRetry={(round) =>
+                void submit(round.type, draftFromRound(round, allAssets))
               }
-            >
-              {t('Return to latest')}
-            </Button>
-          )}
-          <div
-            ref={composerArea}
-            className='pointer-events-none absolute inset-x-3 bottom-3 z-30'
-          >
-            <div className='pointer-events-auto'>
-              <WorkspaceComposer
-                balance={balance}
-                capabilities={capabilities.data}
-                compact={!atLatest && !composerExpanded}
-                pricing={pricing.data}
-                draft={drafts[activeType]}
-                groups={groups.data || {}}
-                submitting={submitting}
-                uploadProgress={uploadProgress}
-                type={activeType}
-                onDraftChange={updateDraft}
-                onExpand={() => setComposerExpanded(true)}
-                onInteractionChange={(interacting) => {
-                  composerInteracting.current = interacting
-                  if (interacting) setComposerExpanded(true)
-                }}
-                onSubmit={() => void submit()}
-                onTypeChange={(type) => {
-                  setActiveType(type)
-                  void updateWorkspaceConversation(props.conversationId, {
-                    active_type: type,
-                  })
-                }}
-                onUpload={(kind, file) => void upload(kind, file)}
-              />
-            </div>
+            />
           </div>
-        </div>
+        </WorkspaceScrollLayout>
       </div>
       <Dialog
         open={Boolean(missingKey)}

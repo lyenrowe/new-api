@@ -16,7 +16,7 @@ import {
   TextCreationIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -85,7 +85,10 @@ const imageResolutions = ['2K', '4K']
 
 export function WorkspaceComposer(props: WorkspaceComposerProps) {
   const { t } = useTranslation()
+  const composer = useRef<HTMLDivElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const promptInput = useRef<HTMLTextAreaElement>(null)
+  const focusAfterExpand = useRef(false)
   const capability = selectedCapability(
     props.type,
     props.draft.model,
@@ -139,8 +142,17 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
       : 'grid-cols-[6.75rem_minmax(0,1fr)]'
   }
 
+  useLayoutEffect(() => {
+    if (props.compact || !focusAfterExpand.current) return
+    focusAfterExpand.current = false
+    if (!composer.current?.contains(document.activeElement)) {
+      promptInput.current?.focus()
+    }
+  }, [props.compact])
+
   return (
     <div
+      ref={composer}
       className={cn(
         'bg-background/96 mx-auto w-full max-w-5xl overflow-visible rounded-2xl border shadow-xl backdrop-blur-xl',
         'transition-[padding] duration-150 ease-out motion-reduce:transition-none',
@@ -149,7 +161,9 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
       data-workspace-composer={props.compact ? 'compact' : 'expanded'}
       onClick={props.compact ? props.onExpand : undefined}
       onFocusCapture={() => {
+        if (focusWithin.current) return
         focusWithin.current = true
+        if (props.compact) focusAfterExpand.current = true
         props.onInteractionChange(true)
         props.onExpand()
       }}
@@ -337,6 +351,7 @@ export function WorkspaceComposer(props: WorkspaceComposerProps) {
               />
             )}
             <Textarea
+              ref={promptInput}
               aria-label={t('Prompt')}
               className='max-h-[min(40svh,20rem)] min-h-28 resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:ring-0'
               placeholder={t('Describe what you want to create')}

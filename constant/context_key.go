@@ -54,6 +54,8 @@ const (
 	ContextKeyUserName    ContextKey = "username"
 
 	ContextKeyLocalCountTokens ContextKey = "local_count_tokens"
+	ContextKeyFinalUsageTokens ContextKey = "final_usage_tokens"
+	ContextKeyFinalQuota       ContextKey = "final_quota"
 
 	ContextKeySystemPromptOverride ContextKey = "system_prompt_override"
 

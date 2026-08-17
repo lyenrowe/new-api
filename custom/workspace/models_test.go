@@ -72,10 +72,20 @@ func TestClaimRoundAllowsOnlyOneGeneration(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, ClaimRound(db, 10, round.ID))
+	tokenCount := 6840
+	quota := 10951
+	require.NoError(t, UpdateRound(db, 10, round.ID, map[string]any{
+		"token_count": tokenCount,
+		"quota":       quota,
+	}))
 	assert.Error(t, ClaimRound(db, 10, round.ID))
 	claimed, err := GetRound(db, 10, round.ID)
 	require.NoError(t, err)
 	assert.Equal(t, RoundGenerating, claimed.Status)
+	require.NotNil(t, claimed.TokenCount)
+	require.NotNil(t, claimed.Quota)
+	assert.Equal(t, tokenCount, *claimed.TokenCount)
+	assert.Equal(t, quota, *claimed.Quota)
 }
 
 func TestArchiveImageResponseStoresGeneratedOutputInUserWorkspace(t *testing.T) {
