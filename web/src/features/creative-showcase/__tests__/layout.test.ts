@@ -9,7 +9,11 @@ License, or (at your option) any later version.
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { showcaseContentTypes, showcaseCreationTools } from '../showcase-layout'
+import {
+  showcaseContentTypes,
+  showcaseCreationTools,
+  showcaseLayoutClasses,
+} from '../showcase-layout'
 
 describe('creative showcase layout', () => {
   test('labels content filters as cases instead of generation actions', () => {
@@ -32,5 +36,13 @@ describe('creative showcase layout', () => {
       showcaseCreationTools.map((item) => item.search.type),
       ['text', 'image', 'video']
     )
+  })
+
+  test('keeps the light header distinct and trims the hero and toolbar spacing', () => {
+    assert.match(showcaseLayoutClasses.header, /\bbg-background\/95\b/)
+    assert.match(showcaseLayoutClasses.hero, /\blg:pb-8\b/)
+    assert.doesNotMatch(showcaseLayoutClasses.hero, /\blg:py-14\b/)
+    assert.match(showcaseLayoutClasses.toolbar, /\bitems-center\b/)
+    assert.match(showcaseLayoutClasses.toolbar, /\bpy-4\b/)
   })
 })

@@ -42,7 +42,11 @@ import { useIsAdmin } from '@/hooks/use-admin'
 import { cn } from '@/lib/utils'
 
 import { getShowcaseCases, getShowcaseCategories } from './api'
-import { showcaseContentTypes, showcaseCreationTools } from './showcase-layout'
+import {
+  showcaseContentTypes,
+  showcaseCreationTools,
+  showcaseLayoutClasses,
+} from './showcase-layout'
 import type { ShowcaseCase, ShowcaseCaseType } from './types'
 
 const contentTypeIcons = {
@@ -86,14 +90,19 @@ export function CreativeShowcasePage() {
   }, [fetchNextPage, hasMore, isFetchingNextPage])
 
   return (
-    <PublicLayout showMainContainer={false}>
+    <PublicLayout
+      headerProps={{
+        className: showcaseLayoutClasses.header,
+      }}
+      showMainContainer={false}
+    >
       <main className='bg-background min-h-screen'>
         <section className='relative overflow-hidden border-b'>
           <div
             aria-hidden
             className='absolute inset-0 bg-[radial-gradient(ellipse_55%_100%_at_78%_25%,oklch(0.61_0.2_260_/_0.24),transparent_66%),radial-gradient(ellipse_38%_90%_at_95%_5%,oklch(0.7_0.18_305_/_0.16),transparent_70%),linear-gradient(112deg,oklch(0.17_0.018_255),oklch(0.1_0.014_265))]'
           />
-          <div className='relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_30rem] lg:px-8 lg:py-14'>
+          <div className={showcaseLayoutClasses.hero}>
             <div className='relative z-10'>
               <h1 className='text-3xl font-semibold tracking-tight text-white sm:text-4xl'>
                 {t('Create with AI examples')}
@@ -109,60 +118,50 @@ export function CreativeShowcasePage() {
         </section>
 
         <section className='border-b'>
-          <div className='mx-auto grid max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:px-8'>
-            <div>
-              <p className='text-muted-foreground mb-2 text-xs font-medium tracking-[0.16em] uppercase'>
-                {t('Content type')}
-              </p>
-              <div className='bg-muted/70 inline-flex rounded-xl p-1'>
-                {showcaseContentTypes.map((contentType) => (
-                  <Button
-                    className='min-w-28'
-                    key={contentType.type}
-                    variant={type === contentType.type ? 'default' : 'ghost'}
-                    onClick={() => {
-                      setType(contentType.type)
-                      setCategoryId(undefined)
-                      setFeatured(false)
-                    }}
-                  >
-                    <HugeiconsIcon
-                      icon={contentTypeIcons[contentType.type]}
-                      strokeWidth={2}
-                    />
-                    {t(contentType.labelKey)}
-                  </Button>
-                ))}
-              </div>
+          <div className={showcaseLayoutClasses.toolbar}>
+            <div className='bg-muted/70 inline-flex rounded-xl p-1'>
+              {showcaseContentTypes.map((contentType) => (
+                <Button
+                  className='min-w-28'
+                  key={contentType.type}
+                  variant={type === contentType.type ? 'default' : 'ghost'}
+                  onClick={() => {
+                    setType(contentType.type)
+                    setCategoryId(undefined)
+                    setFeatured(false)
+                  }}
+                >
+                  <HugeiconsIcon
+                    icon={contentTypeIcons[contentType.type]}
+                    strokeWidth={2}
+                  />
+                  {t(contentType.labelKey)}
+                </Button>
+              ))}
             </div>
 
-            <div>
-              <p className='text-muted-foreground mb-2 text-xs font-medium tracking-[0.16em] uppercase lg:text-right'>
-                {t('Creation tools')}
-              </p>
-              <div className='flex flex-wrap gap-2'>
-                {showcaseCreationTools.map((tool) => (
-                  <Button
-                    key={tool.id}
-                    variant='outline'
-                    render={<Link to={tool.href} search={tool.search} />}
-                  >
-                    <HugeiconsIcon
-                      icon={creationToolIcons[tool.id]}
-                      strokeWidth={2}
-                    />
-                    {t(tool.labelKey)}
-                  </Button>
-                ))}
-                {isAdmin && (
-                  <Button
-                    variant='outline'
-                    render={<Link to='/creative-showcase/manage' />}
-                  >
-                    {t('Manage cases')}
-                  </Button>
-                )}
-              </div>
+            <div className='flex flex-wrap gap-2'>
+              {showcaseCreationTools.map((tool) => (
+                <Button
+                  key={tool.id}
+                  variant='outline'
+                  render={<Link to={tool.href} search={tool.search} />}
+                >
+                  <HugeiconsIcon
+                    icon={creationToolIcons[tool.id]}
+                    strokeWidth={2}
+                  />
+                  {t(tool.labelKey)}
+                </Button>
+              ))}
+              {isAdmin && (
+                <Button
+                  variant='outline'
+                  render={<Link to='/creative-showcase/manage' />}
+                >
+                  {t('Manage cases')}
+                </Button>
+              )}
             </div>
           </div>
         </section>

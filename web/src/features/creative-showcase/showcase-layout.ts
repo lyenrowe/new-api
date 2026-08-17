@@ -31,3 +31,11 @@ export const showcaseCreationTools = [
     search: { type: 'video' },
   },
 ] as const
+
+export const showcaseLayoutClasses = {
+  header:
+    'bg-background/95 ring-border/60 rounded-b-2xl shadow-sm ring-1 backdrop-blur-xl sm:rounded-2xl',
+  hero: 'relative mx-auto grid max-w-7xl items-center gap-8 px-4 pt-12 pb-7 sm:px-6 lg:grid-cols-[minmax(0,1fr)_30rem] lg:px-8 lg:pt-14 lg:pb-8',
+  toolbar:
+    'mx-auto grid max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:px-8',
+} as const
