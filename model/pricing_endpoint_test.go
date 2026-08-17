@@ -162,6 +162,33 @@ func TestPricingModelMetadataEndpointsCanProvideEndpointWithoutChannelInference(
 	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, byModel["metadata-only-model"])
 }
 
+func TestPricingPropagatesModalitiesFromRuleMetadata(t *testing.T) {
+	resetPricingEndpointTestTables(t)
+
+	insertPricingEndpointChannel(t, 105, constant.ChannelTypeOpenAI, dto.ChannelOtherSettings{})
+	insertPricingEndpointAbility(t, 105, "media-v1")
+	require.NoError(t, DB.Create(&Model{
+		ModelName:        "media-",
+		InputModalities:  []string{ModelModalityText, ModelModalityImage},
+		OutputModalities: []string{ModelModalityImage},
+		Status:           1,
+		NameRule:         NameRulePrefix,
+	}).Error)
+
+	var found *Pricing
+	pricings := GetPricing()
+	for index := range pricings {
+		pricing := &pricings[index]
+		if pricing.ModelName == "media-v1" {
+			found = pricing
+			break
+		}
+	}
+	require.NotNil(t, found)
+	assert.Equal(t, []string{ModelModalityText, ModelModalityImage}, found.InputModalities)
+	assert.Equal(t, []string{ModelModalityImage}, found.OutputModalities)
+}
+
 func TestPricingAdvancedCustomMissingConfigFallsBackToChannelType(t *testing.T) {
 	resetPricingEndpointTestTables(t)
 

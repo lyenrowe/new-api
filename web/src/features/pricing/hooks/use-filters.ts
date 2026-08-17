@@ -26,6 +26,7 @@ import {
   SORT_OPTIONS,
   QUOTA_TYPES,
   ENDPOINT_TYPES,
+  OUTPUT_MODALITIES,
   DEFAULT_TOKEN_UNIT,
   VIEW_MODES,
   type ViewMode,
@@ -40,6 +41,7 @@ type FilterState = {
   group?: string
   quotaType?: string
   endpointType?: string
+  outputModality?: string
   tag?: string
   tokenUnit?: TokenUnit
   view?: ViewMode
@@ -62,6 +64,7 @@ export function useFilters(models: PricingModel[]) {
     group: search.group,
     quotaType: search.quotaType,
     endpointType: search.endpointType,
+    outputModality: search.outputModality,
     tag: search.tag,
     tokenUnit: search.tokenUnit,
     view: search.view,
@@ -75,6 +78,8 @@ export function useFilters(models: PricingModel[]) {
   const groupFilter = filterState.group || FILTER_ALL
   const quotaTypeFilter = filterState.quotaType || QUOTA_TYPES.ALL
   const endpointTypeFilter = filterState.endpointType || ENDPOINT_TYPES.ALL
+  const outputModalityFilter =
+    filterState.outputModality || OUTPUT_MODALITIES.ALL
   const tagFilter = filterState.tag || FILTER_ALL
   const tokenUnit: TokenUnit =
     filterState.tokenUnit === 'K' ? 'K' : DEFAULT_TOKEN_UNIT
@@ -122,6 +127,13 @@ export function useFilters(models: PricingModel[]) {
       }),
     [updateFilters]
   )
+  const setOutputModalityFilter = useCallback(
+    (v: string) =>
+      updateFilters({
+        outputModality: v === OUTPUT_MODALITIES.ALL ? undefined : v,
+      }),
+    [updateFilters]
+  )
   const setTagFilter = useCallback(
     (v: string) => updateFilters({ tag: v === FILTER_ALL ? undefined : v }),
     [updateFilters]
@@ -155,6 +167,7 @@ export function useFilters(models: PricingModel[]) {
       group: groupFilter,
       quotaType: quotaTypeFilter,
       endpointType: endpointTypeFilter,
+      outputModality: outputModalityFilter,
       tag: tagFilter,
       sortBy,
     })
@@ -165,6 +178,7 @@ export function useFilters(models: PricingModel[]) {
     groupFilter,
     quotaTypeFilter,
     endpointTypeFilter,
+    outputModalityFilter,
     tagFilter,
     sortBy,
   ])
@@ -175,8 +189,16 @@ export function useFilters(models: PricingModel[]) {
       groupFilter !== FILTER_ALL ||
       quotaTypeFilter !== QUOTA_TYPES.ALL ||
       endpointTypeFilter !== ENDPOINT_TYPES.ALL ||
+      outputModalityFilter !== OUTPUT_MODALITIES.ALL ||
       tagFilter !== FILTER_ALL,
-    [vendorFilter, groupFilter, quotaTypeFilter, endpointTypeFilter, tagFilter]
+    [
+      vendorFilter,
+      groupFilter,
+      quotaTypeFilter,
+      endpointTypeFilter,
+      outputModalityFilter,
+      tagFilter,
+    ]
   )
 
   const activeFilterCount = useMemo(
@@ -185,8 +207,16 @@ export function useFilters(models: PricingModel[]) {
       (groupFilter !== FILTER_ALL ? 1 : 0) +
       (quotaTypeFilter !== QUOTA_TYPES.ALL ? 1 : 0) +
       (endpointTypeFilter !== ENDPOINT_TYPES.ALL ? 1 : 0) +
+      (outputModalityFilter !== OUTPUT_MODALITIES.ALL ? 1 : 0) +
       (tagFilter !== FILTER_ALL ? 1 : 0),
-    [vendorFilter, groupFilter, quotaTypeFilter, endpointTypeFilter, tagFilter]
+    [
+      vendorFilter,
+      groupFilter,
+      quotaTypeFilter,
+      endpointTypeFilter,
+      outputModalityFilter,
+      tagFilter,
+    ]
   )
 
   const clearFilters = useCallback(() => {
@@ -195,6 +225,7 @@ export function useFilters(models: PricingModel[]) {
       group: undefined,
       quotaType: undefined,
       endpointType: undefined,
+      outputModality: undefined,
       tag: undefined,
     })
   }, [updateFilters])
@@ -210,6 +241,7 @@ export function useFilters(models: PricingModel[]) {
     groupFilter,
     quotaTypeFilter,
     endpointTypeFilter,
+    outputModalityFilter,
     tagFilter,
     tokenUnit,
     viewMode,
@@ -220,6 +252,7 @@ export function useFilters(models: PricingModel[]) {
     setGroupFilter,
     setQuotaTypeFilter,
     setEndpointTypeFilter,
+    setOutputModalityFilter,
     setTagFilter,
     setTokenUnit,
     setViewMode,

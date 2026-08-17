@@ -28,6 +28,7 @@ import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { getModels, searchModels, getVendors } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
+  getModelModalityOptions,
   getModelStatusOptions,
   getSyncStatusOptions,
 } from '../constants'
@@ -64,6 +65,11 @@ export function ModelsTable() {
       { columnId: 'status', searchKey: 'status', type: 'array' },
       { columnId: 'vendor_id', searchKey: 'vendor', type: 'array' },
       { columnId: 'sync_official', searchKey: 'sync', type: 'array' },
+      {
+        columnId: 'output_modalities',
+        searchKey: 'outputModality',
+        type: 'array',
+      },
     ],
   })
 
@@ -75,6 +81,10 @@ export function ModelsTable() {
   const syncFilter =
     (columnFilters.find((f) => f.id === 'sync_official')?.value as string[]) ||
     []
+  const outputModalityFilter =
+    (columnFilters.find((f) => f.id === 'output_modalities')?.value as
+      | string[]
+      | undefined) || []
 
   // Fetch vendors for filter
   const { data: vendorsData } = useQuery({
@@ -109,13 +119,18 @@ export function ModelsTable() {
     syncFilter.length > 0 && !syncFilter.includes('all')
       ? syncFilter[0]
       : undefined
+  const outputModalityFilterValue =
+    outputModalityFilter.length > 0 && !outputModalityFilter.includes('all')
+      ? outputModalityFilter[0]
+      : undefined
 
   // Use search API whenever any filter is active so status/sync are applied server-side
   const shouldSearch = Boolean(
     globalFilter?.trim() ||
     activeVendorFilter ||
     statusFilterValue ||
-    syncFilterValue
+    syncFilterValue ||
+    outputModalityFilterValue
   )
 
   // Fetch models data
@@ -126,6 +141,7 @@ export function ModelsTable() {
       vendor: activeVendorFilter,
       status: statusFilterValue,
       sync_official: syncFilterValue,
+      output_modality: outputModalityFilterValue,
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
     }),
@@ -136,6 +152,7 @@ export function ModelsTable() {
           vendor: activeVendorFilter,
           status: statusFilterValue,
           sync_official: syncFilterValue,
+          output_modality: outputModalityFilterValue,
           p: pagination.pageIndex + 1,
           page_size: pagination.pageSize,
         })
@@ -187,6 +204,11 @@ export function ModelsTable() {
       value: option.value,
     })),
   ]
+  const outputModalityFilterOptions = [
+    { label: t('All output types'), value: 'all' },
+    ...getModelModalityOptions(t),
+    { label: t('Unclassified'), value: 'unclassified' },
+  ]
 
   return (
     <DataTablePage
@@ -220,6 +242,12 @@ export function ModelsTable() {
             columnId: 'sync_official',
             title: t('Official Sync'),
             options: [...getSyncStatusOptions(t)],
+            singleSelect: true,
+          },
+          {
+            columnId: 'output_modalities',
+            title: t('Output Type'),
+            options: outputModalityFilterOptions,
             singleSelect: true,
           },
         ],

@@ -112,7 +112,7 @@ const MODALITY_LABEL_KEYS: Record<string, string> = {
   image: 'Image',
   audio: 'Audio',
   video: 'Video',
-  file: 'File',
+  pdf: 'PDF',
 }
 
 const TOKEN_FORMAT = new Intl.NumberFormat(undefined, {

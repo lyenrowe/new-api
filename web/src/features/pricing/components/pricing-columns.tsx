@@ -343,6 +343,36 @@ export function usePricingColumns(
       enableSorting: false,
     },
 
+    {
+      accessorKey: 'output_modalities',
+      header: t('Output Type'),
+      cell: ({ row }) => {
+        const labels = {
+          text: t('Text'),
+          image: t('Image'),
+          audio: t('Audio'),
+          video: t('Video'),
+          pdf: t('PDF'),
+        }
+        const modalities = row.original.output_modalities || []
+        return (
+          <BadgeListCell
+            items={modalities.map((modality) => (
+              <StatusBadge
+                key={modality}
+                label={labels[modality]}
+                autoColor={modality}
+                size='sm'
+                copyable={false}
+              />
+            ))}
+          />
+        )
+      },
+      size: 120,
+      enableSorting: false,
+    },
+
     // Tags column
     {
       accessorKey: 'tags',

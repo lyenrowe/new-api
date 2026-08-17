@@ -66,6 +66,8 @@ const FIELD_LABELS: Record<string, string> = {
   endpoints: 'Endpoints',
   quota_types: 'Quota Types',
   enable_groups: 'Enable Groups',
+  input_modalities: 'Input Modalities',
+  output_modalities: 'Output Modalities',
 }
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const

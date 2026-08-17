@@ -61,6 +61,7 @@ export function Pricing() {
     groupFilter,
     quotaTypeFilter,
     endpointTypeFilter,
+    outputModalityFilter,
     tagFilter,
     tokenUnit,
     viewMode,
@@ -71,6 +72,7 @@ export function Pricing() {
     setGroupFilter,
     setQuotaTypeFilter,
     setEndpointTypeFilter,
+    setOutputModalityFilter,
     setTagFilter,
     setTokenUnit,
     setViewMode,
@@ -206,11 +208,13 @@ export function Pricing() {
             <PricingSidebar
               quotaTypeFilter={quotaTypeFilter}
               endpointTypeFilter={endpointTypeFilter}
+              outputModalityFilter={outputModalityFilter}
               vendorFilter={vendorFilter}
               groupFilter={groupFilter}
               tagFilter={tagFilter}
               onQuotaTypeChange={setQuotaTypeFilter}
               onEndpointTypeChange={setEndpointTypeFilter}
+              onOutputModalityChange={setOutputModalityFilter}
               onVendorChange={setVendorFilter}
               onGroupChange={setGroupFilter}
               onTagChange={setTagFilter}
@@ -238,11 +242,13 @@ export function Pricing() {
                 onViewModeChange={setViewMode}
                 quotaTypeFilter={quotaTypeFilter}
                 endpointTypeFilter={endpointTypeFilter}
+                outputModalityFilter={outputModalityFilter}
                 vendorFilter={vendorFilter}
                 groupFilter={groupFilter}
                 tagFilter={tagFilter}
                 onQuotaTypeChange={setQuotaTypeFilter}
                 onEndpointTypeChange={setEndpointTypeFilter}
+                onOutputModalityChange={setOutputModalityFilter}
                 onVendorChange={setVendorFilter}
                 onGroupChange={setGroupFilter}
                 onTagChange={setTagFilter}

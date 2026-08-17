@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 
-import type { TokenUnit } from './types'
+import type { Modality, TokenUnit } from './types'
 
 // ----------------------------------------------------------------------------
 // Pricing Constants
@@ -43,6 +43,28 @@ export function getSortLabels(t: TFunction): Record<SortOption, string> {
 
 /** Filter values */
 export const FILTER_ALL = 'all'
+
+export const OUTPUT_MODALITIES = {
+  ALL: FILTER_ALL,
+  TEXT: 'text',
+  IMAGE: 'image',
+  AUDIO: 'audio',
+  VIDEO: 'video',
+  PDF: 'pdf',
+} as const
+
+export function getOutputModalityLabels(
+  t: TFunction
+): Record<(typeof OUTPUT_MODALITIES)[keyof typeof OUTPUT_MODALITIES], string> {
+  return {
+    [OUTPUT_MODALITIES.ALL]: t('All output types'),
+    [OUTPUT_MODALITIES.TEXT]: t('Text'),
+    [OUTPUT_MODALITIES.IMAGE]: t('Image'),
+    [OUTPUT_MODALITIES.AUDIO]: t('Audio'),
+    [OUTPUT_MODALITIES.VIDEO]: t('Video'),
+    [OUTPUT_MODALITIES.PDF]: t('PDF'),
+  } as Record<typeof FILTER_ALL | Modality, string>
+}
 
 /** Quota type options */
 export const QUOTA_TYPES = {

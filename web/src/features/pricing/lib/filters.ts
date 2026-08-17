@@ -22,6 +22,7 @@ import {
   QUOTA_TYPES,
   QUOTA_TYPE_VALUES,
   ENDPOINT_TYPES,
+  OUTPUT_MODALITIES,
 } from '../constants'
 import type { PricingModel } from '../types'
 
@@ -98,6 +99,18 @@ export function filterByEndpointType(
   )
 }
 
+export function filterByOutputModality(
+  models: PricingModel[],
+  outputModality: string
+): PricingModel[] {
+  if (outputModality === OUTPUT_MODALITIES.ALL) return models
+  return models.filter((model) =>
+    model.output_modalities?.includes(
+      outputModality as NonNullable<PricingModel['output_modalities']>[number]
+    )
+  )
+}
+
 /**
  * Get model price for sorting
  */
@@ -142,6 +155,7 @@ export function filterAndSortModels(
     group: string
     quotaType: string
     endpointType: string
+    outputModality: string
     tag: string
     sortBy: string
   }
@@ -151,6 +165,7 @@ export function filterAndSortModels(
   result = filterByGroup(result, filters.group)
   result = filterByQuotaType(result, filters.quotaType)
   result = filterByEndpointType(result, filters.endpointType)
+  result = filterByOutputModality(result, filters.outputModality)
   result = filterByTag(result, filters.tag)
   result = sortModels(result, filters.sortBy)
 
@@ -183,7 +198,7 @@ export function extractAllTags(models: PricingModel[]): string[] {
     }
   })
 
-  return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
+  return [...tagSet].sort((a, b) => a.localeCompare(b))
 }
 
 /**

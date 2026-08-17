@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -16,24 +17,42 @@ const (
 	NameRuleSuffix
 )
 
+const (
+	ModelModalityText  = "text"
+	ModelModalityImage = "image"
+	ModelModalityAudio = "audio"
+	ModelModalityVideo = "video"
+	ModelModalityPDF   = "pdf"
+)
+
+var modelModalityOrder = []string{
+	ModelModalityText,
+	ModelModalityImage,
+	ModelModalityAudio,
+	ModelModalityVideo,
+	ModelModalityPDF,
+}
+
 type BoundChannel struct {
 	Name string `json:"name"`
 	Type int    `json:"type"`
 }
 
 type Model struct {
-	Id           int            `json:"id"`
-	ModelName    string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
-	Description  string         `json:"description,omitempty" gorm:"type:text"`
-	Icon         string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
-	Tags         string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
-	VendorID     int            `json:"vendor_id,omitempty" gorm:"index"`
-	Endpoints    string         `json:"endpoints,omitempty" gorm:"type:text"`
-	Status       int            `json:"status" gorm:"default:1"`
-	SyncOfficial int            `json:"sync_official" gorm:"default:1"`
-	CreatedTime  int64          `json:"created_time" gorm:"bigint"`
-	UpdatedTime  int64          `json:"updated_time" gorm:"bigint"`
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
+	Id               int            `json:"id"`
+	ModelName        string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
+	Description      string         `json:"description,omitempty" gorm:"type:text"`
+	Icon             string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
+	Tags             string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
+	VendorID         int            `json:"vendor_id,omitempty" gorm:"index"`
+	Endpoints        string         `json:"endpoints,omitempty" gorm:"type:text"`
+	InputModalities  []string       `json:"input_modalities,omitempty" gorm:"serializer:json;type:text"`
+	OutputModalities []string       `json:"output_modalities,omitempty" gorm:"serializer:json;type:text"`
+	Status           int            `json:"status" gorm:"default:1"`
+	SyncOfficial     int            `json:"sync_official" gorm:"default:1"`
+	CreatedTime      int64          `json:"created_time" gorm:"bigint"`
+	UpdatedTime      int64          `json:"updated_time" gorm:"bigint"`
+	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
 
 	BoundChannels []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
 	EnableGroups  []string       `json:"enable_groups,omitempty" gorm:"-"`
@@ -45,6 +64,9 @@ type Model struct {
 }
 
 func (mi *Model) Insert() error {
+	if err := mi.NormalizeModalities(); err != nil {
+		return err
+	}
 	now := common.GetTimestamp()
 	mi.CreatedTime = now
 	mi.UpdatedTime = now
@@ -75,11 +97,58 @@ func IsModelNameDuplicated(id int, name string) (bool, error) {
 }
 
 func (mi *Model) Update() error {
+	if err := mi.NormalizeModalities(); err != nil {
+		return err
+	}
 	mi.UpdatedTime = common.GetTimestamp()
 	// 使用 Select 强制更新所有字段，包括零值
 	return DB.Model(&Model{}).Where("id = ?", mi.Id).
-		Select("model_name", "description", "icon", "tags", "vendor_id", "endpoints", "status", "sync_official", "name_rule", "updated_time").
+		Select("model_name", "description", "icon", "tags", "vendor_id", "endpoints", "input_modalities", "output_modalities", "status", "sync_official", "name_rule", "updated_time").
 		Updates(mi).Error
+}
+
+func IsValidModelModality(value string) bool {
+	for _, modality := range modelModalityOrder {
+		if value == modality {
+			return true
+		}
+	}
+	return false
+}
+
+func NormalizeModelModalities(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if !IsValidModelModality(value) {
+			return nil, fmt.Errorf("unsupported model modality: %s", value)
+		}
+		seen[value] = struct{}{}
+	}
+	normalized := make([]string, 0, len(seen))
+	for _, value := range modelModalityOrder {
+		if _, ok := seen[value]; ok {
+			normalized = append(normalized, value)
+		}
+	}
+	return normalized, nil
+}
+
+func (mi *Model) NormalizeModalities() error {
+	input, err := NormalizeModelModalities(mi.InputModalities)
+	if err != nil {
+		return err
+	}
+	output, err := NormalizeModelModalities(mi.OutputModalities)
+	if err != nil {
+		return err
+	}
+	mi.InputModalities = input
+	mi.OutputModalities = output
+	return nil
 }
 
 func (mi *Model) Delete() error {
@@ -133,7 +202,7 @@ func GetModelVendorNames(modelNames []string) (map[string]string, error) {
 }
 
 func GetAllModels(offset int, limit int) ([]*Model, error) {
-	models, _, err := SearchModels("", "", "", "", offset, limit)
+	models, _, err := SearchModels("", "", "", "", "", offset, limit)
 	return models, err
 }
 
@@ -219,7 +288,7 @@ func GetPreferredModelOwnerChannelTypes(modelNames []string, groups []string) (m
 	return result, nil
 }
 
-func SearchModels(keyword string, vendor string, status string, syncOfficial string, offset int, limit int) ([]*Model, int64, error) {
+func SearchModels(keyword string, vendor string, status string, syncOfficial string, outputModality string, offset int, limit int) ([]*Model, int64, error) {
 	var models []*Model
 	db := DB.Model(&Model{})
 	if keyword != "" {
@@ -238,6 +307,15 @@ func SearchModels(keyword string, vendor string, status string, syncOfficial str
 	}
 	if syncValue, ok := parseModelSyncFilter(syncOfficial); ok {
 		db = db.Where("models.sync_official = ?", syncValue)
+	}
+	outputModality = strings.ToLower(strings.TrimSpace(outputModality))
+	if outputModality == "unclassified" {
+		db = db.Where("models.output_modalities IS NULL OR models.output_modalities = ? OR models.output_modalities = ? OR models.output_modalities = ?", "", "null", "[]")
+	} else if outputModality != "" && outputModality != "all" {
+		if !IsValidModelModality(outputModality) {
+			return nil, 0, fmt.Errorf("unsupported output modality: %s", outputModality)
+		}
+		db = db.Where("models.output_modalities LIKE ?", "%\""+outputModality+"\"%")
 	}
 	var total int64
 	if err := db.Count(&total).Error; err != nil {

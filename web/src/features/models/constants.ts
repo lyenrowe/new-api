@@ -16,9 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 
-import type { NameRule, ModelStatus, SyncSource } from './types'
+import type { ModelModality, NameRule, ModelStatus, SyncSource } from './types'
+
+export const MODEL_MODALITIES: ModelModality[] = [
+  'text',
+  'image',
+  'audio',
+  'video',
+  'pdf',
+]
+
+export function getModelModalityOptions(t: TFunction) {
+  const labels: Record<ModelModality, string> = {
+    text: t('Text'),
+    image: t('Image'),
+    audio: t('Audio'),
+    video: t('Video'),
+    pdf: t('PDF'),
+  }
+  return MODEL_MODALITIES.map((value) => ({ value, label: labels[value] }))
+}
 
 // ============================================================================
 // Pagination

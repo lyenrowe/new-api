@@ -35,12 +35,13 @@ import { formatTimestampToDate } from '@/lib/format'
 import { getLobeIcon } from '@/lib/lobe-icon'
 
 import {
+  getModelModalityOptions,
   getModelStatusConfig,
   getNameRuleConfig,
   getQuotaTypeConfig,
 } from '../constants'
 import { parseModelTags, formatEndpointsDisplay } from '../lib'
-import type { Model, Vendor } from '../types'
+import type { Model, ModelModality, Vendor } from '../types'
 import { DataTableRowActions } from './data-table-row-actions'
 import { DescriptionCell } from './description-cell'
 
@@ -60,6 +61,9 @@ export function useModelsColumns(vendors: Vendor[] = []): ColumnDef<Model>[] {
   const NAME_RULE_CONFIG = getNameRuleConfig(t)
   const MODEL_STATUS_CONFIG = getModelStatusConfig(t)
   const QUOTA_TYPE_CONFIG = getQuotaTypeConfig(t)
+  const modalityLabels = Object.fromEntries(
+    getModelModalityOptions(t).map((option) => [option.value, option.label])
+  ) as Record<ModelModality, string>
 
   const vendorMap: Record<number, Vendor> = {}
   vendors.forEach((v) => {
@@ -134,6 +138,41 @@ export function useModelsColumns(vendors: Vendor[] = []): ColumnDef<Model>[] {
       },
       size: 260,
       minSize: 200,
+    },
+
+    {
+      accessorKey: 'output_modalities',
+      header: t('Output Modalities'),
+      meta: { mobileHidden: true },
+      cell: ({ row }) => {
+        const modalities = row.getValue('output_modalities') as
+          | ModelModality[]
+          | undefined
+        if (!modalities?.length) {
+          return (
+            <StatusBadge
+              label={t('Unclassified')}
+              variant='neutral'
+              size='sm'
+              copyable={false}
+            />
+          )
+        }
+        return (
+          <BadgeListCell
+            items={modalities.map((modality) => (
+              <StatusBadge
+                key={modality}
+                label={modalityLabels[modality]}
+                autoColor={modality}
+                size='sm'
+              />
+            ))}
+          />
+        )
+      },
+      size: 160,
+      enableSorting: false,
     },
 
     // Name Rule column

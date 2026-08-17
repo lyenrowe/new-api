@@ -19,7 +19,8 @@ func GetAllModelsMeta(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	status := c.Query("status")
 	syncOfficial := c.Query("sync_official")
-	modelsMeta, total, err := model.SearchModels("", "", status, syncOfficial, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	outputModality := c.Query("output_modality")
+	modelsMeta, total, err := model.SearchModels("", "", status, syncOfficial, outputModality, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -48,9 +49,10 @@ func SearchModelsMeta(c *gin.Context) {
 	vendor := c.Query("vendor")
 	status := c.Query("status")
 	syncOfficial := c.Query("sync_official")
+	outputModality := c.Query("output_modality")
 	pageInfo := common.GetPageQuery(c)
 
-	modelsMeta, total, err := model.SearchModels(keyword, vendor, status, syncOfficial, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	modelsMeta, total, err := model.SearchModels(keyword, vendor, status, syncOfficial, outputModality, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return

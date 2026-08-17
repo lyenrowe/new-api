@@ -34,6 +34,7 @@ import {
   sideDrawerSwitchItemClassName,
 } from '@/components/drawer-layout'
 import { JsonEditor } from '@/components/json-editor'
+import { MultiSelect } from '@/components/multi-select'
 import { TagInput } from '@/components/tag-input'
 import { Button } from '@/components/ui/button'
 import {
@@ -82,7 +83,11 @@ import type { ModelSettings } from '@/features/system-settings/types'
 import { safeJsonParse } from '@/features/system-settings/utils/json-parser'
 
 import { createModel, updateModel, getModel, getVendors } from '../../api'
-import { getNameRuleOptions, ENDPOINT_TEMPLATES } from '../../constants'
+import {
+  getModelModalityOptions,
+  getNameRuleOptions,
+  ENDPOINT_TEMPLATES,
+} from '../../constants'
 import { modelsQueryKeys, vendorsQueryKeys, parseModelTags } from '../../lib'
 import type { Model } from '../../types'
 
@@ -95,6 +100,10 @@ const extendedModelFormSchema = z.object({
   tags: z.array(z.string()),
   vendor_id: z.number().optional(),
   endpoints: z.string(),
+  input_modalities: z.array(z.enum(['text', 'image', 'audio', 'video', 'pdf'])),
+  output_modalities: z.array(
+    z.enum(['text', 'image', 'audio', 'video', 'pdf'])
+  ),
   name_rule: z.number(),
   status: z.boolean(),
   sync_official: z.boolean(),
@@ -366,6 +375,8 @@ export function ModelMutateDrawer({
       tags: [],
       vendor_id: undefined,
       endpoints: '',
+      input_modalities: ['text'],
+      output_modalities: ['text'],
       name_rule: 0,
       status: true,
       sync_official: true,
@@ -434,6 +445,8 @@ export function ModelMutateDrawer({
         tags: parseModelTags(model.tags),
         vendor_id: model.vendor_id,
         endpoints: model.endpoints || '',
+        input_modalities: model.input_modalities || [],
+        output_modalities: model.output_modalities || [],
         name_rule: model.name_rule || 0,
         status: model.status === 1,
         sync_official: model.sync_official === 1,
@@ -459,6 +472,8 @@ export function ModelMutateDrawer({
         tags: [],
         vendor_id: undefined,
         endpoints: '',
+        input_modalities: ['text'],
+        output_modalities: ['text'],
         name_rule: 0,
         status: true,
         sync_official: true,
@@ -869,6 +884,54 @@ export function ModelMutateDrawer({
                     </FormControl>
                     <FormDescription>
                       {t('Press Enter or comma to add tags')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SideDrawerSection>
+
+            <SideDrawerSection>
+              <h3 className='text-sm font-semibold'>{t('Modalities')}</h3>
+
+              <FormField
+                control={form.control}
+                name='input_modalities'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Input Modalities')}</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={getModelModalityOptions(t)}
+                        selected={field.value}
+                        onChange={field.onChange}
+                        placeholder={t('Select input modalities')}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Content types this model can accept')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='output_modalities'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Output Modalities')}</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={getModelModalityOptions(t)}
+                        selected={field.value}
+                        onChange={field.onChange}
+                        placeholder={t('Select output modalities')}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Content types this model can generate')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

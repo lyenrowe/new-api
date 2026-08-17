@@ -41,6 +41,8 @@ export interface Model {
   tags?: string
   vendor_id?: number
   endpoints?: string
+  input_modalities?: ModelModality[]
+  output_modalities?: ModelModality[]
   status: number
   sync_official: number
   created_time: number
@@ -91,6 +93,7 @@ export interface GetModelsParams {
   vendor?: string // vendor ID to filter by
   status?: string // filter by status
   sync_official?: string // filter by sync_official status
+  output_modality?: string // filter by output modality
 }
 
 /**
@@ -101,6 +104,7 @@ export interface SearchModelsParams {
   vendor?: string // vendor ID to filter by
   status?: string // filter by status
   sync_official?: string // filter by sync_official status
+  output_modality?: string // filter by output modality
   p?: number
   page_size?: number
 }
@@ -235,6 +239,12 @@ export const modelFormSchema = z.object({
   tags: z.array(z.string()).default([]),
   vendor_id: z.number().optional(),
   endpoints: z.string().default(''),
+  input_modalities: z
+    .array(z.enum(['text', 'image', 'audio', 'video', 'pdf']))
+    .default([]),
+  output_modalities: z
+    .array(z.enum(['text', 'image', 'audio', 'video', 'pdf']))
+    .default([]),
   name_rule: z.number().min(0).max(3).default(0),
   status: z.boolean().default(true),
   sync_official: z.boolean().default(true),
@@ -276,6 +286,8 @@ export type PrefillGroupFormValues = z.infer<typeof prefillGroupFormSchema>
  * Name rule type
  */
 export type NameRule = 0 | 1 | 2 | 3 // exact, prefix, contains, suffix
+
+export type ModelModality = 'text' | 'image' | 'audio' | 'video' | 'pdf'
 
 /**
  * Model status type

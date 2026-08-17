@@ -35,10 +35,12 @@ import {
   FILTER_ALL,
   QUOTA_TYPES,
   getEndpointTypeLabels,
+  getOutputModalityLabels,
+  OUTPUT_MODALITIES,
   getQuotaTypeLabels,
 } from '../constants'
 import { parseTags } from '../lib/filters'
-import type { PricingModel, PricingVendor } from '../types'
+import type { Modality, PricingModel, PricingVendor } from '../types'
 
 type FilterOption = {
   value: string
@@ -58,11 +60,13 @@ type FilterSectionProps = {
 export interface PricingSidebarProps {
   quotaTypeFilter: string
   endpointTypeFilter: string
+  outputModalityFilter: string
   vendorFilter: string
   groupFilter: string
   tagFilter: string
   onQuotaTypeChange: (value: string) => void
   onEndpointTypeChange: (value: string) => void
+  onOutputModalityChange: (value: string) => void
   onVendorChange: (value: string) => void
   onGroupChange: (value: string) => void
   onTagChange: (value: string) => void
@@ -160,6 +164,7 @@ export function PricingSidebar(props: PricingSidebarProps) {
   const { t } = useTranslation()
   const quotaTypeLabels = getQuotaTypeLabels(t)
   const endpointTypeLabels = getEndpointTypeLabels(t)
+  const outputModalityLabels = getOutputModalityLabels(t)
 
   const vendorOptions: FilterOption[] = [
     {
@@ -245,6 +250,21 @@ export function PricingSidebar(props: PricingSidebarProps) {
       })),
   ]
 
+  const outputModalityOptions: FilterOption[] = Object.entries(
+    outputModalityLabels
+  ).map(([value, label]) => ({
+    value,
+    label,
+    count:
+      value === OUTPUT_MODALITIES.ALL
+        ? props.models.length
+        : countBy(
+            props.models,
+            (model) =>
+              model.output_modalities?.includes(value as Modality) ?? false
+          ),
+  }))
+
   return (
     <aside className={cn('rounded-xl border p-3', props.className)}>
       <div className='mb-2.5 flex items-center justify-between gap-2'>
@@ -297,6 +317,12 @@ export function PricingSidebar(props: PricingSidebarProps) {
           value={props.quotaTypeFilter}
           options={quotaOptions}
           onChange={props.onQuotaTypeChange}
+        />
+        <FilterSection
+          title={t('Output Type')}
+          value={props.outputModalityFilter}
+          options={outputModalityOptions}
+          onChange={props.onOutputModalityChange}
         />
         <FilterSection
           title={t('Endpoint Type')}
