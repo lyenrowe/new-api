@@ -26,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
+import { PageTransition } from '@/components/page-transition'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -91,191 +92,204 @@ export function CreativeShowcasePage() {
 
   return (
     <PublicLayout showMainContainer={false}>
-      <main className='bg-background min-h-screen'>
-        <section className='relative overflow-hidden border-b'>
-          <div
-            aria-hidden
-            className='absolute inset-x-0 top-16 bottom-0 bg-[radial-gradient(ellipse_55%_100%_at_78%_25%,oklch(0.61_0.2_260_/_0.24),transparent_66%),radial-gradient(ellipse_38%_90%_at_95%_5%,oklch(0.7_0.18_305_/_0.16),transparent_70%),linear-gradient(112deg,oklch(0.17_0.018_255),oklch(0.1_0.014_265))]'
-          />
-          <div className={showcaseLayoutClasses.hero}>
-            <div className='relative z-10'>
-              <h1 className='text-3xl font-semibold tracking-tight text-white sm:text-4xl'>
-                {t('Create with AI examples')}
-              </h1>
-              <p className='mt-3 max-w-2xl text-sm leading-6 text-white/65 sm:text-base'>
-                {t(
-                  'Browse image and video templates with ready-to-use prompts and generation settings.'
+      <PageTransition className='relative' variant='fade'>
+        <div
+          aria-hidden
+          className={showcaseLayoutClasses.background}
+          style={{
+            background: [
+              'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
+              'radial-gradient(ellipse 40% 35% at 50% 70%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
+            ].join(', '),
+            maskImage:
+              'linear-gradient(to bottom, black 40%, transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to bottom, black 40%, transparent 100%)',
+          }}
+        />
+        <main className='relative min-h-screen'>
+          <section className='relative overflow-hidden border-b'>
+            <div className={showcaseLayoutClasses.hero}>
+              <div className='relative z-10'>
+                <h1 className='text-3xl font-semibold tracking-tight sm:text-4xl'>
+                  {t('Create with AI examples')}
+                </h1>
+                <p className='text-muted-foreground mt-3 max-w-2xl text-sm leading-6 sm:text-base'>
+                  {t(
+                    'Browse image and video templates with ready-to-use prompts and generation settings.'
+                  )}
+                </p>
+              </div>
+              <ShowcaseBanner />
+            </div>
+          </section>
+
+          <section className='border-b'>
+            <div className={showcaseLayoutClasses.toolbar}>
+              <div className='bg-muted/70 inline-flex rounded-xl p-1'>
+                {showcaseContentTypes.map((contentType) => (
+                  <Button
+                    className='min-w-28'
+                    key={contentType.type}
+                    variant={type === contentType.type ? 'default' : 'ghost'}
+                    onClick={() => {
+                      setType(contentType.type)
+                      setCategoryId(undefined)
+                      setFeatured(false)
+                    }}
+                  >
+                    <HugeiconsIcon
+                      icon={contentTypeIcons[contentType.type]}
+                      strokeWidth={2}
+                    />
+                    {t(contentType.labelKey)}
+                  </Button>
+                ))}
+              </div>
+
+              <div className='flex flex-wrap gap-2'>
+                {showcaseCreationTools.map((tool) => (
+                  <Button
+                    key={tool.id}
+                    variant='outline'
+                    render={<Link to={tool.href} search={tool.search} />}
+                  >
+                    <HugeiconsIcon
+                      icon={creationToolIcons[tool.id]}
+                      strokeWidth={2}
+                    />
+                    {t(tool.labelKey)}
+                  </Button>
+                ))}
+                {isAdmin && (
+                  <Button
+                    variant='outline'
+                    render={<Link to='/creative-showcase/manage' />}
+                  >
+                    {t('Manage cases')}
+                  </Button>
                 )}
-              </p>
+              </div>
             </div>
-            <ShowcaseBanner />
-          </div>
-        </section>
+          </section>
 
-        <section className='border-b'>
-          <div className={showcaseLayoutClasses.toolbar}>
-            <div className='bg-muted/70 inline-flex rounded-xl p-1'>
-              {showcaseContentTypes.map((contentType) => (
-                <Button
-                  className='min-w-28'
-                  key={contentType.type}
-                  variant={type === contentType.type ? 'default' : 'ghost'}
-                  onClick={() => {
-                    setType(contentType.type)
-                    setCategoryId(undefined)
-                    setFeatured(false)
-                  }}
-                >
-                  <HugeiconsIcon
-                    icon={contentTypeIcons[contentType.type]}
-                    strokeWidth={2}
-                  />
-                  {t(contentType.labelKey)}
-                </Button>
-              ))}
-            </div>
-
-            <div className='flex flex-wrap gap-2'>
-              {showcaseCreationTools.map((tool) => (
-                <Button
-                  key={tool.id}
-                  variant='outline'
-                  render={<Link to={tool.href} search={tool.search} />}
-                >
-                  <HugeiconsIcon
-                    icon={creationToolIcons[tool.id]}
-                    strokeWidth={2}
-                  />
-                  {t(tool.labelKey)}
-                </Button>
-              ))}
-              {isAdmin && (
-                <Button
-                  variant='outline'
-                  render={<Link to='/creative-showcase/manage' />}
-                >
-                  {t('Manage cases')}
-                </Button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className='mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8'>
-          <div className='mb-3 flex gap-2 overflow-x-auto border-b pb-2'>
-            <Button
-              size='sm'
-              variant={
-                !featured && categoryId === undefined ? 'secondary' : 'ghost'
-              }
-              onClick={() => {
-                setCategoryId(undefined)
-                setFeatured(false)
-              }}
-            >
-              {t('All')}
-            </Button>
-            <Button
-              size='sm'
-              variant={featured ? 'secondary' : 'ghost'}
-              onClick={() => {
-                setCategoryId(undefined)
-                setFeatured(true)
-              }}
-            >
-              {t('Featured cases')}
-            </Button>
-            {categories.data?.map((category) => (
+          <section className='mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8'>
+            <div className='mb-3 flex gap-2 overflow-x-auto border-b pb-2'>
               <Button
-                key={category.id}
                 size='sm'
-                variant={categoryId === category.id ? 'secondary' : 'ghost'}
+                variant={
+                  !featured && categoryId === undefined ? 'secondary' : 'ghost'
+                }
                 onClick={() => {
-                  setCategoryId(category.id)
+                  setCategoryId(undefined)
                   setFeatured(false)
                 }}
               >
-                {category.name}
+                {t('All')}
               </Button>
-            ))}
-          </div>
-          <p className='text-muted-foreground mb-5 flex items-center gap-1.5 text-xs'>
-            <HugeiconsIcon
-              aria-hidden='true'
-              className='size-3.5'
-              icon={InformationCircleIcon}
-              strokeWidth={2}
-            />
-            {t(
-              'Click a case to preview it and customize the prompt, model, and settings in the workspace.'
-            )}
-          </p>
-          {cases.isLoading ? (
-            <ShowcaseLoading />
-          ) : (
-            <div className='columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4'>
-              {cases.items.map((item) => (
-                <article
-                  className='group bg-card mb-4 break-inside-avoid overflow-hidden rounded-xl border [content-visibility:auto]'
-                  key={item.id}
-                  aria-label={`${t('Full preview')}: ${item.title}`}
-                  role='button'
-                  tabIndex={0}
-                  onClick={() => setPreview(item)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setPreview(item)
-                    }
+              <Button
+                size='sm'
+                variant={featured ? 'secondary' : 'ghost'}
+                onClick={() => {
+                  setCategoryId(undefined)
+                  setFeatured(true)
+                }}
+              >
+                {t('Featured cases')}
+              </Button>
+              {categories.data?.map((category) => (
+                <Button
+                  key={category.id}
+                  size='sm'
+                  variant={categoryId === category.id ? 'secondary' : 'ghost'}
+                  onClick={() => {
+                    setCategoryId(category.id)
+                    setFeatured(false)
                   }}
                 >
-                  <div className='relative'>
-                    <img
-                      alt={item.title}
-                      className='w-full object-cover'
-                      loading='lazy'
-                      src={item.cover_url}
-                    />
-                    <div className='absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100'>
-                      <span className='bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium'>
-                        {t('Full preview')}
-                      </span>
-                    </div>
-                    {item.type === 'video' && (
-                      <span className='absolute top-2 left-2 rounded bg-black/65 px-2 py-1 text-xs text-white'>
-                        {item.duration ? `${item.duration}s` : t('Video')}
-                      </span>
-                    )}
-                  </div>
-                  <div className='space-y-1 p-3'>
-                    <p className='line-clamp-1 font-medium'>{item.title}</p>
-                    <p className='text-muted-foreground line-clamp-2 text-sm'>
-                      {item.prompt}
-                    </p>
-                  </div>
-                </article>
+                  {category.name}
+                </Button>
               ))}
             </div>
-          )}
-          {cases.hasMore && (
-            <div className='mt-8 text-center' ref={loadMoreRef}>
-              <Button
-                variant='outline'
-                disabled={cases.isFetchingNextPage}
-                onClick={() => cases.fetchNextPage()}
-              >
-                {cases.isFetchingNextPage ? t('Loading...') : t('Load more')}
-              </Button>
-            </div>
-          )}
-        </section>
-        <PreviewDialog
-          item={preview}
-          items={cases.items}
-          onOpenChange={(open) => !open && setPreview(undefined)}
-          onSelect={setPreview}
-        />
-      </main>
+            <p className='text-muted-foreground mb-5 flex items-center gap-1.5 text-xs'>
+              <HugeiconsIcon
+                aria-hidden='true'
+                className='size-3.5'
+                icon={InformationCircleIcon}
+                strokeWidth={2}
+              />
+              {t(
+                'Click a case to preview it and customize the prompt, model, and settings in the workspace.'
+              )}
+            </p>
+            {cases.isLoading ? (
+              <ShowcaseLoading />
+            ) : (
+              <div className='columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4'>
+                {cases.items.map((item) => (
+                  <article
+                    className='group bg-card mb-4 break-inside-avoid overflow-hidden rounded-xl border [content-visibility:auto]'
+                    key={item.id}
+                    aria-label={`${t('Full preview')}: ${item.title}`}
+                    role='button'
+                    tabIndex={0}
+                    onClick={() => setPreview(item)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setPreview(item)
+                      }
+                    }}
+                  >
+                    <div className='relative'>
+                      <img
+                        alt={item.title}
+                        className='w-full object-cover'
+                        loading='lazy'
+                        src={item.cover_url}
+                      />
+                      <div className='absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100'>
+                        <span className='bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium'>
+                          {t('Full preview')}
+                        </span>
+                      </div>
+                      {item.type === 'video' && (
+                        <span className='absolute top-2 left-2 rounded bg-black/65 px-2 py-1 text-xs text-white'>
+                          {item.duration ? `${item.duration}s` : t('Video')}
+                        </span>
+                      )}
+                    </div>
+                    <div className='space-y-1 p-3'>
+                      <p className='line-clamp-1 font-medium'>{item.title}</p>
+                      <p className='text-muted-foreground line-clamp-2 text-sm'>
+                        {item.prompt}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            {cases.hasMore && (
+              <div className='mt-8 text-center' ref={loadMoreRef}>
+                <Button
+                  variant='outline'
+                  disabled={cases.isFetchingNextPage}
+                  onClick={() => cases.fetchNextPage()}
+                >
+                  {cases.isFetchingNextPage ? t('Loading...') : t('Load more')}
+                </Button>
+              </div>
+            )}
+          </section>
+          <PreviewDialog
+            item={preview}
+            items={cases.items}
+            onOpenChange={(open) => !open && setPreview(undefined)}
+            onSelect={setPreview}
+          />
+        </main>
+      </PageTransition>
     </PublicLayout>
   )
 }

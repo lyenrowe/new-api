@@ -38,8 +38,11 @@ describe('creative showcase layout', () => {
     )
   })
 
-  test('uses the shared header and keeps the showcase hero compact', () => {
+  test('uses the shared header with a compact, theme-aware showcase hero', () => {
     assert.equal('header' in showcaseLayoutClasses, false)
+    assert.match(showcaseLayoutClasses.background, /\btop-16\b/)
+    assert.match(showcaseLayoutClasses.background, /\bh-\[360px\]/)
+    assert.match(showcaseLayoutClasses.background, /\bdark:opacity-\[0\.10\]/)
     assert.match(showcaseLayoutClasses.hero, /\blg:pb-6\b/)
     assert.doesNotMatch(showcaseLayoutClasses.hero, /\blg:py-14\b/)
     assert.match(showcaseLayoutClasses.toolbar, /\bitems-center\b/)

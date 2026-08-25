@@ -34,10 +34,15 @@ import {
 interface PageTransitionProps {
   children: ReactNode
   className?: string
+  variant?: 'fade' | 'page'
 }
 
 export function PageTransition(props: PageTransitionProps) {
   const shouldReduce = useReducedMotion()
+  const variants =
+    props.variant === 'fade'
+      ? MOTION_VARIANTS.fadeIn
+      : MOTION_VARIANTS.pageEnter
 
   if (shouldReduce) {
     return <div className={props.className}>{props.children}</div>
@@ -45,8 +50,8 @@ export function PageTransition(props: PageTransitionProps) {
 
   return (
     <motion.div
-      initial={MOTION_VARIANTS.pageEnter.initial}
-      animate={MOTION_VARIANTS.pageEnter.animate}
+      initial={variants.initial}
+      animate={variants.animate}
       transition={MOTION_TRANSITION.default}
       className={props.className}
     >
@@ -132,7 +137,7 @@ export function TableStaggerContainer(props: StaggerContainerProps) {
   const shouldReduce = useReducedMotion()
 
   if (shouldReduce) {
-    return <>{props.children}</>
+    return props.children
   }
 
   return (

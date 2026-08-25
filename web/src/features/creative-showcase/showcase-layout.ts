@@ -33,6 +33,8 @@ export const showcaseCreationTools = [
 ] as const
 
 export const showcaseLayoutClasses = {
+  background:
+    'pointer-events-none absolute inset-x-0 top-16 h-[360px] opacity-20 dark:opacity-[0.10]',
   hero: 'relative mx-auto grid max-w-7xl items-center gap-8 px-4 pt-12 pb-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_30rem] lg:px-8 lg:pt-14 lg:pb-6',
   toolbar:
     'mx-auto grid max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:px-8',
