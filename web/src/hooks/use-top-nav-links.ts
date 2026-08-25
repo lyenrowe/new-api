@@ -85,12 +85,6 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Creative'), href: '/creative-showcase' })
   }
 
-  links.push({
-    title: t('Workspace'),
-    href: '/workspace',
-    requiresAuth: !isAuthed,
-  })
-
   // Console -> /dashboard (new console path)
   if (modules?.console !== false) {
     links.push({ title: t('Console'), href: '/dashboard' })

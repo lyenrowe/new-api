@@ -54,7 +54,7 @@ const { useAuthStore } = await import('@/stores/auth-store')
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({ lng: 'en', resources: {} })
 
-test('orders the configured primary navigation from discovery to console and docs', async () => {
+test('orders the configured primary navigation without the workspace link', async () => {
   const queryClient = new QueryClient()
   queryClient.setQueryData(['status'], {
     HeaderNavModules: {
@@ -96,10 +96,7 @@ test('orders the configured primary navigation from discovery to console and doc
     )
   })
 
-  assert.equal(
-    container.textContent,
-    'Home|Model Square|Creative|Workspace|Console|Docs'
-  )
+  assert.equal(container.textContent, 'Home|Model Square|Creative|Console|Docs')
 
   await act(async () => root.unmount())
   container.remove()

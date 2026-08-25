@@ -90,17 +90,12 @@ export function CreativeShowcasePage() {
   }, [fetchNextPage, hasMore, isFetchingNextPage])
 
   return (
-    <PublicLayout
-      headerProps={{
-        className: showcaseLayoutClasses.header,
-      }}
-      showMainContainer={false}
-    >
+    <PublicLayout showMainContainer={false}>
       <main className='bg-background min-h-screen'>
         <section className='relative overflow-hidden border-b'>
           <div
             aria-hidden
-            className='absolute inset-0 bg-[radial-gradient(ellipse_55%_100%_at_78%_25%,oklch(0.61_0.2_260_/_0.24),transparent_66%),radial-gradient(ellipse_38%_90%_at_95%_5%,oklch(0.7_0.18_305_/_0.16),transparent_70%),linear-gradient(112deg,oklch(0.17_0.018_255),oklch(0.1_0.014_265))]'
+            className='absolute inset-x-0 top-16 bottom-0 bg-[radial-gradient(ellipse_55%_100%_at_78%_25%,oklch(0.61_0.2_260_/_0.24),transparent_66%),radial-gradient(ellipse_38%_90%_at_95%_5%,oklch(0.7_0.18_305_/_0.16),transparent_70%),linear-gradient(112deg,oklch(0.17_0.018_255),oklch(0.1_0.014_265))]'
           />
           <div className={showcaseLayoutClasses.hero}>
             <div className='relative z-10'>

@@ -38,9 +38,9 @@ describe('creative showcase layout', () => {
     )
   })
 
-  test('keeps the light header distinct and trims the hero and toolbar spacing', () => {
-    assert.match(showcaseLayoutClasses.header, /\bbg-background\/95\b/)
-    assert.match(showcaseLayoutClasses.hero, /\blg:pb-8\b/)
+  test('uses the shared header and keeps the showcase hero compact', () => {
+    assert.equal('header' in showcaseLayoutClasses, false)
+    assert.match(showcaseLayoutClasses.hero, /\blg:pb-6\b/)
     assert.doesNotMatch(showcaseLayoutClasses.hero, /\blg:py-14\b/)
     assert.match(showcaseLayoutClasses.toolbar, /\bitems-center\b/)
     assert.match(showcaseLayoutClasses.toolbar, /\bpy-4\b/)
