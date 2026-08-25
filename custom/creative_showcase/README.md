@@ -12,10 +12,11 @@ ALIYUN_ACCESS_KEY_SECRET=your-ram-access-key-secret
 CREATIVE_SHOWCASE_OSS_BUCKET=your-oss-bucket
 CREATIVE_SHOWCASE_OSS_REGION=oss-cn-hangzhou
 CREATIVE_SHOWCASE_OSS_ROLE_ARN=acs:ram::123456789012:role/creative-showcase-upload
+CREATIVE_SHOWCASE_OSS_PREFIX=creative-showcase/  # Optional, defaults to "creative-showcase/"
 CREATIVE_SHOWCASE_CDN_URL=https://s.zhouyitoken.com
 ```
 
-The RAM role must only permit `PutObject` and multipart-upload operations in
+The RAM role must only permit `PutObject` and multipart-upload operations in the `$CREATIVE_SHOWCASE_OSS_PREFIX` prefix. Configure OSS CORS to permit the dashboard origin and the methods/headers used by the OSS browser SDK. The browser receives only a 15-minute temporary STS credential; the long-lived access key stays on the server.
 the `creative-showcase/*` prefix. Configure OSS CORS to permit the dashboard
 origin and the methods/headers used by the OSS browser SDK. The browser receives
 only a 15-minute temporary STS credential; the long-lived access key stays on

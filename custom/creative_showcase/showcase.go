@@ -35,7 +35,9 @@ import (
 	"gorm.io/gorm"
 )
 
-const assetPrefix = "creative-showcase/"
+func getAssetPrefix() string {
+	return getEnv("CREATIVE_SHOWCASE_OSS_PREFIX", "creative-showcase/")
+}
 const maxLocalAssetSize = 500 << 20
 
 type Category struct {
@@ -383,7 +385,7 @@ func presentCase(item Case) caseResponse {
 	return caseResponse{ID: item.ID, Title: item.Title, Type: item.Type, CategoryID: item.CategoryID, CoverURL: assetURL(item.CoverKey), CoverKey: item.CoverKey, MediaURL: assetURL(item.MediaKey), MediaKey: item.MediaKey, Prompt: item.Prompt, Size: item.Size, AspectRatio: item.AspectRatio, Duration: item.Duration, Model: item.Model, Group: item.Group, StartFrame: assetURL(item.StartFrame), EndFrame: assetURL(item.EndFrame), StartFrameKey: item.StartFrame, EndFrameKey: item.EndFrame, Settings: item.Settings, ReferenceURLs: item.ReferenceURLs, Featured: item.Featured, Published: item.Published, SortOrder: item.SortOrder}
 }
 func isAssetKey(key string) bool {
-	return strings.HasPrefix(key, assetPrefix) && !strings.Contains(key, "..")
+	return strings.HasPrefix(key, getAssetPrefix()) && !strings.Contains(key, "..")
 }
 func assetURL(key string) string {
 	if key == "" {
@@ -448,7 +450,7 @@ type assumeRoleResponse struct {
 
 func uploadCredentials(c *gin.Context) {
 	if !ossConfigured() {
-		respondOK(c, gin.H{"mode": "local", "prefix": assetPrefix})
+		respondOK(c, gin.H{"mode": "local", "prefix": getAssetPrefix()})
 		return
 	}
 	credentials, err := assumeRole(c.Request.Context())
@@ -457,7 +459,7 @@ func uploadCredentials(c *gin.Context) {
 		respondError(c, http.StatusServiceUnavailable, "Unable to create upload credentials")
 		return
 	}
-	respondOK(c, gin.H{"mode": "oss", "access_key_id": credentials.AccessKeyID, "access_key_secret": credentials.AccessKeySecret, "security_token": credentials.SecurityToken, "expiration": credentials.Expiration, "bucket": getEnv("CREATIVE_SHOWCASE_OSS_BUCKET", ""), "region": getEnv("CREATIVE_SHOWCASE_OSS_REGION", ""), "prefix": assetPrefix})
+	respondOK(c, gin.H{"mode": "oss", "access_key_id": credentials.AccessKeyID, "access_key_secret": credentials.AccessKeySecret, "security_token": credentials.SecurityToken, "expiration": credentials.Expiration, "bucket": getEnv("CREATIVE_SHOWCASE_OSS_BUCKET", ""), "region": getEnv("CREATIVE_SHOWCASE_OSS_REGION", ""), "prefix": getAssetPrefix()})
 }
 
 func ossConfigured() bool {
@@ -523,7 +525,7 @@ func uploadLocalAsset(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "Asset must have a valid file extension")
 		return
 	}
-	key := assetPrefix + time.Now().UTC().Format("2006-01-02") + "/" + uuid.NewString() + extension
+	key := getAssetPrefix() + time.Now().UTC().Format("2006-01-02") + "/" + uuid.NewString() + extension
 	path, ok := localAssetPath(key)
 	if !ok {
 		respondError(c, http.StatusInternalServerError, "Unable to prepare local asset storage")
@@ -565,7 +567,8 @@ func assumeRole(ctx context.Context) (stsCredentials, error) {
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return stsCredentials{}, fmt.Errorf("STS returned %s", response.Status)
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		return stsCredentials{}, fmt.Errorf("STS returned %s: %s", response.Status, strings.TrimSpace(string(body)))
 	}
 	var parsed assumeRoleResponse
 	if err := xml.NewDecoder(response.Body).Decode(&parsed); err != nil {
